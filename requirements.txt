@@ -1,0 +1,4 @@
+# google-auth 2.23+ has solid external account (WIF) support
+google-auth>=2.27.0
+requests>=2.28.0
+google-api-python-client>=2.100.0
