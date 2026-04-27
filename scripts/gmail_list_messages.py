@@ -5,8 +5,8 @@ List recent Gmail message IDs for a Workspace user using domain-wide delegation.
 Prerequisites
 -------------
 1. A WIF ADC JSON that includes *service account impersonation* (field
-   service_account_impersonation_url), not only "direct" federation. The service
-   account must be the one you enabled for domain-wide delegation in Admin.
+   service_account_impersonation_url). The service
+   account must be the one you enabled for domain-wide delegation.
 2. In Google Admin: API controls → Domain-wide delegation → the service
    account *client ID* (numeric), with the Gmail scope(s) you use below.
 3. Gmail API enabled on the GCP project.
