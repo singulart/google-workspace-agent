@@ -1,0 +1,9 @@
+# Sensitive local config
+clientLibraryConfig-argorand.json
+terraform/state.tf
+
+# Terraform local state/artifacts
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
