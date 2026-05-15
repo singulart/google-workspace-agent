@@ -2,6 +2,42 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
+data "aws_partition" "current" {}
+
+# Required before: aws xray update-trace-segment-destination --destination CloudWatchLogs
+# https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-configure.html#observability-configure-builtin-cw
+resource "aws_cloudwatch_log_resource_policy" "xray_transaction_search" {
+  policy_name = "${var.name_prefix}-xray-transaction-search-spans"
+  policy_document = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TransactionSearchXRayAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "xray.amazonaws.com"
+        }
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = [
+          "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:aws/spans:*",
+          "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/application-signals/data:*",
+        ]
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = "arn:${data.aws_partition.current.partition}:xray:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:*"
+          }
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
+}
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -310,8 +346,8 @@ data "aws_iam_policy_document" "agent_runtime_inline" {
 }
 
 resource "aws_iam_role_policy" "agent_runtime" {
-  name = "${var.name_prefix}-agentcore-runtime-inline"
-  role = aws_iam_role.agent_runtime.id
+  name   = "${var.name_prefix}-agentcore-runtime-inline"
+  role   = aws_iam_role.agent_runtime.id
   policy = data.aws_iam_policy_document.agent_runtime_inline.json
 
   depends_on = [aws_bedrockagentcore_memory.main]
@@ -351,14 +387,72 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
     MEMORY_ID           = aws_bedrockagentcore_memory.main.id
     AWS_REGION          = var.aws_region
     # ADOT / CloudWatch GenAI Observability (with opentelemetry-instrument in container)
-    AGENT_OBSERVABILITY_ENABLED   = "true"
-    OTEL_PYTHON_DISTRO             = "aws_distro"
-    OTEL_PYTHON_CONFIGURATOR       = "aws_configurator"
-    OTEL_EXPORTER_OTLP_PROTOCOL    = "http/protobuf"
-    OTEL_RESOURCE_ATTRIBUTES       = "service.name=${var.name_prefix}_agent"
+    AGENT_OBSERVABILITY_ENABLED = "true"
+    OTEL_PYTHON_DISTRO          = "aws_distro"
+    OTEL_PYTHON_CONFIGURATOR    = "aws_configurator"
+    OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
+    OTEL_RESOURCE_ATTRIBUTES    = "service.name=${var.name_prefix}_agent"
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]
+}
+
+# AgentCore console "Log deliveries and tracing" is driven by CloudWatch Logs V2
+# deliveries (not the runtime IAM OTEL env alone). See:
+# https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-configure.html
+
+resource "aws_cloudwatch_log_group" "runtime_application_logs" {
+  name              = "/aws/vendedlogs/bedrock-agentcore/runtime/APPLICATION_LOGS/${aws_bedrockagentcore_agent_runtime.main.agent_runtime_id}"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.name_prefix}-agentcore-application-logs"
+  }
+}
+
+resource "aws_cloudwatch_log_delivery_source" "runtime_application_logs" {
+  name         = "${var.name_prefix}-ac-runtime-app-logs"
+  log_type     = "APPLICATION_LOGS"
+  resource_arn = aws_bedrockagentcore_agent_runtime.main.agent_runtime_arn
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "runtime_application_logs" {
+  name = "${var.name_prefix}-ac-runtime-app-logs-dest"
+
+  delivery_destination_configuration {
+    destination_resource_arn = aws_cloudwatch_log_group.runtime_application_logs.arn
+  }
+}
+
+resource "aws_cloudwatch_log_delivery" "runtime_application_logs" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.runtime_application_logs.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.runtime_application_logs.arn
+
+  depends_on = [
+    aws_cloudwatch_log_delivery_source.runtime_application_logs,
+    aws_cloudwatch_log_delivery_destination.runtime_application_logs,
+  ]
+}
+
+resource "aws_cloudwatch_log_delivery_source" "runtime_traces" {
+  name         = "${var.name_prefix}-ac-runtime-traces"
+  log_type     = "TRACES"
+  resource_arn = aws_bedrockagentcore_agent_runtime.main.agent_runtime_arn
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "runtime_traces_xray" {
+  name                      = "${var.name_prefix}-ac-runtime-traces-dest"
+  delivery_destination_type = "XRAY"
+}
+
+resource "aws_cloudwatch_log_delivery" "runtime_traces" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.runtime_traces.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.runtime_traces_xray.arn
+
+  depends_on = [
+    aws_cloudwatch_log_delivery_source.runtime_traces,
+    aws_cloudwatch_log_delivery_destination.runtime_traces_xray,
+  ]
 }
 
 resource "aws_bedrockagentcore_agent_runtime_endpoint" "main" {
