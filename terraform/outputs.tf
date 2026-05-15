@@ -29,5 +29,6 @@ output "sessions_table" {
 }
 
 output "vpc_subnet_ids" {
-  value = data.aws_subnets.default_per_az.ids
+  description = "Default VPC subnets used by the Agent Core runtime (Agent Core–compatible AZ IDs only)."
+  value       = data.aws_subnets.agentcore_compatible.ids
 }

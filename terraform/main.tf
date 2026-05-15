@@ -6,7 +6,9 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnets" "default_per_az" {
+# Default-VPC subnets limited to AZ IDs that Bedrock Agent Core supports in us-east-1
+# (see error: use1-az1, use1-az2, use1-az4 — not use1-az3/5/6).
+data "aws_subnets" "agentcore_compatible" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
@@ -15,6 +17,11 @@ data "aws_subnets" "default_per_az" {
   filter {
     name   = "default-for-az"
     values = ["true"]
+  }
+
+  filter {
+    name   = "availability-zone-id"
+    values = var.agentcore_subnet_availability_zone_ids
   }
 }
 
@@ -229,7 +236,7 @@ data "aws_iam_policy_document" "agent_runtime_inline" {
   }
 
   statement {
-    sid    = "CloudWatchLogs"
+    sid    = "CloudWatchLogsVended"
     effect = "Allow"
     actions = [
       "logs:CreateLogGroup",
@@ -237,6 +244,68 @@ data "aws_iam_policy_document" "agent_runtime_inline" {
       "logs:PutLogEvents",
     ]
     resources = ["arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/vendedlogs/bedrock-agentcore/*"]
+  }
+
+  # AgentCore execution role: runtime app + OTEL logs (see runtime-permissions.html)
+  statement {
+    sid    = "CloudWatchLogsRuntime"
+    effect = "Allow"
+    actions = [
+      "logs:DescribeLogStreams",
+      "logs:CreateLogGroup",
+    ]
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/bedrock-agentcore/runtimes/*",
+    ]
+  }
+
+  statement {
+    sid    = "CloudWatchLogsDescribeGroups"
+    effect = "Allow"
+    actions = [
+      "logs:DescribeLogGroups",
+    ]
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:*",
+    ]
+  }
+
+  statement {
+    sid    = "CloudWatchLogsRuntimeStreams"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*",
+    ]
+  }
+
+  statement {
+    sid    = "XRayTelemetry"
+    effect = "Allow"
+    actions = [
+      "xray:PutTraceSegments",
+      "xray:PutTelemetryRecords",
+      "xray:GetSamplingRules",
+      "xray:GetSamplingTargets",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "CloudWatchAgentCoreMetrics"
+    effect = "Allow"
+    actions = [
+      "cloudwatch:PutMetricData",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = ["bedrock-agentcore"]
+    }
   }
 }
 
@@ -252,7 +321,7 @@ resource "aws_iam_role_policy" "agent_runtime" {
 
 resource "aws_bedrockagentcore_agent_runtime" "main" {
   agent_runtime_name = "${var.name_prefix}_runtime"
-  description        = "Vincent agent (container) on default VPC public subnets"
+  description        = "Vincent, a Google Workspace agent"
   role_arn           = aws_iam_role.agent_runtime.arn
 
   agent_runtime_artifact {
@@ -264,8 +333,15 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
   network_configuration {
     network_mode = "VPC"
     network_mode_config {
-      subnets         = data.aws_subnets.default_per_az.ids
+      subnets         = data.aws_subnets.agentcore_compatible.ids
       security_groups = [aws_security_group.agent_runtime.id]
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(data.aws_subnets.agentcore_compatible.ids) > 0
+      error_message = "No default VPC subnets found in Agent Core-compatible AZs (var.agentcore_subnet_availability_zone_ids). Add subnets in a supported zone ID or adjust the variable per AWS docs for your region."
     }
   }
 
@@ -274,6 +350,12 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
     SESSIONS_TABLE_NAME = aws_dynamodb_table.sessions.name
     MEMORY_ID           = aws_bedrockagentcore_memory.main.id
     AWS_REGION          = var.aws_region
+    # ADOT / CloudWatch GenAI Observability (with opentelemetry-instrument in container)
+    AGENT_OBSERVABILITY_ENABLED   = "true"
+    OTEL_PYTHON_DISTRO             = "aws_distro"
+    OTEL_PYTHON_CONFIGURATOR       = "aws_configurator"
+    OTEL_EXPORTER_OTLP_PROTOCOL    = "http/protobuf"
+    OTEL_RESOURCE_ATTRIBUTES       = "service.name=${var.name_prefix}_agent"
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]

@@ -17,4 +17,6 @@ COPY agent/ .
 
 EXPOSE 8080
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# ADOT auto-instrumentation → CloudWatch (GenAI Observability). Requires account
+# CloudWatch Transaction Search enabled; see AWS AgentCore observability docs.
+CMD ["opentelemetry-instrument", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
