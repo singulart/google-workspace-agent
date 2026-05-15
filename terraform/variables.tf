@@ -45,6 +45,49 @@ variable "memory_event_retention_days" {
   }
 }
 
+variable "lambda_artifacts_bucket" {
+  type        = string
+  description = "S3 bucket holding Lambda deployment.zip artifacts (see deploy_lambda.sh)."
+  default     = "argorand-lambdas-repository"
+}
+
+variable "api_gateway_stage_name" {
+  type        = string
+  description = "API Gateway stage name (path is still /v1/vincent on the API)."
+  default     = "prod"
+}
+
+variable "google_chat_auth_mode" {
+  type        = string
+  description = "Google Chat JWT verification mode: project_number (recommended) or http_url."
+  default     = "project_number"
+
+  validation {
+    condition     = contains(["project_number", "http_url"], var.google_chat_auth_mode)
+    error_message = "google_chat_auth_mode must be project_number or http_url."
+  }
+
+  validation {
+    condition = (
+      var.google_chat_auth_mode != "http_url"
+      || trimspace(var.google_chat_http_audience) != ""
+    )
+    error_message = "When google_chat_auth_mode is http_url, set google_chat_http_audience to the full POST URL (use output google_chat_webhook_url after a project_number deploy)."
+  }
+}
+
+variable "google_chat_project_number" {
+  type        = string
+  description = "GCP project number for Chat app Authentication audience (project_number mode)."
+  default     = "886715385828"
+}
+
+variable "google_chat_http_audience" {
+  type        = string
+  description = "Full HTTPS URL audience for Chat (http_url mode). Leave empty to derive from API Gateway invoke URL after create."
+  default     = ""
+}
+
 variable "agentcore_subnet_availability_zone_ids" {
   type        = list(string)
   description = <<-EOT
