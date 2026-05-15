@@ -4,6 +4,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project = "vincent"
+      Repository = "google-workspace-agent"
     }
   }
 }

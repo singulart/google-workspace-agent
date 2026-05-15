@@ -1,0 +1,10 @@
+.git
+.terraform
+terraform
+scripts
+**/__pycache__
+*.pyc
+*.pyo
+.env
+*.md
+clientLibraryConfig*.json

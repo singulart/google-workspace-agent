@@ -116,7 +116,7 @@ resource "aws_ecr_repository" "agent" {
 # --- AgentCore Memory: minimum retention, no strategies (no extra model/strategy charges) ---
 
 resource "aws_bedrockagentcore_memory" "main" {
-  name                  = "${var.name_prefix}-memory"
+  name                  = "${var.name_prefix}_memory"
   description           = "Short-term AgentCore memory; strategies disabled for minimal cost."
   event_expiry_duration = var.memory_event_retention_days
 }
@@ -251,7 +251,7 @@ resource "aws_iam_role_policy" "agent_runtime" {
 # --- AgentCore runtime (container) + endpoint ---
 
 resource "aws_bedrockagentcore_agent_runtime" "main" {
-  agent_runtime_name = "${var.name_prefix}-runtime"
+  agent_runtime_name = "${var.name_prefix}_runtime"
   description        = "Vincent agent (container) on default VPC public subnets"
   role_arn           = aws_iam_role.agent_runtime.arn
 
@@ -280,7 +280,7 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
 }
 
 resource "aws_bedrockagentcore_agent_runtime_endpoint" "main" {
-  name             = "${var.name_prefix}-endpoint"
+  name             = "${var.name_prefix}_endpoint"
   description      = "Invoke surface for ${var.name_prefix} runtime"
   agent_runtime_id = aws_bedrockagentcore_agent_runtime.main.agent_runtime_id
 }
