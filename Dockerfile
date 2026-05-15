@@ -17,6 +17,7 @@ COPY agent/ .
 
 EXPOSE 8080
 
-# ADOT auto-instrumentation → CloudWatch (GenAI Observability). Requires account
-# CloudWatch Transaction Search enabled; see AWS AgentCore observability docs.
-CMD ["opentelemetry-instrument", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Use plain uvicorn so the process binds quickly. `opentelemetry-instrument` + ADOT
+# can exceed AgentCore's ~120s runtime initialization budget (cold start + OTLP setup).
+# Re-introduce OTEL after Transaction Search/destinations are ACTIVE if you need ADOT.
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
