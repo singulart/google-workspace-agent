@@ -6,4 +6,6 @@ terraform/state.tf
 *.tfstate
 *.tfstate.*
 .terraform/
-.terraform.lock.hcl
+
+# Python cache
+__pycache__/
