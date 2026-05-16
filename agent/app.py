@@ -11,6 +11,7 @@ SigV4 on the AWS side. For Chat, either:
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Any
@@ -34,9 +35,11 @@ async def ping(_: Request) -> JSONResponse:
 
 
 async def invocations(request: Request) -> JSONResponse:
+    raw = await request.body()
+    print(raw.decode("utf-8", errors="replace"), flush=True)
     try:
-        body: dict[str, Any] = await request.json()
-    except Exception:
+        body: Any = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
         return JSONResponse(
             {"response": "Expected application/json body.", "status": "error"},
             status_code=400,
@@ -48,9 +51,11 @@ async def invocations(request: Request) -> JSONResponse:
 
 async def chat_http_root(request: Request) -> JSONResponse:
     """Optional Google Chat HTTP endpoint (same JSON as Chat sends to /)."""
+    raw = await request.body()
+    print(raw.decode("utf-8", errors="replace"), flush=True)
     try:
-        body: dict[str, Any] = await request.json()
-    except Exception:
+        body: Any = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
         return JSONResponse({}, status_code=400)
 
     result = process_invocation_body(body)

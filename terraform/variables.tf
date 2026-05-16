@@ -31,7 +31,7 @@ variable "ecr_repository_name" {
 variable "container_image_tag" {
   type        = string
   description = "Image tag in ECR referenced by the AgentCore runtime (push this image before apply if the runtime is new)."
-  default     = "latest"
+  default     = "2026-05-16-002"
 }
 
 variable "memory_event_retention_days" {
