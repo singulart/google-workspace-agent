@@ -59,20 +59,12 @@ variable "api_gateway_stage_name" {
 
 variable "google_chat_auth_mode" {
   type        = string
-  description = "Google Chat JWT verification mode: project_number (recommended) or http_url."
-  default     = "project_number"
+  description = "Google Chat JWT mode: http_url (OIDC audience = API invoke URL; default) or project_number (audience = GCP project number)."
+  default     = "http_url"
 
   validation {
     condition     = contains(["project_number", "http_url"], var.google_chat_auth_mode)
     error_message = "google_chat_auth_mode must be project_number or http_url."
-  }
-
-  validation {
-    condition = (
-      var.google_chat_auth_mode != "http_url"
-      || trimspace(var.google_chat_http_audience) != ""
-    )
-    error_message = "When google_chat_auth_mode is http_url, set google_chat_http_audience to the full POST URL (use output google_chat_webhook_url after a project_number deploy)."
   }
 }
 
@@ -84,7 +76,7 @@ variable "google_chat_project_number" {
 
 variable "google_chat_http_audience" {
   type        = string
-  description = "Full HTTPS URL audience for Chat (http_url mode). Leave empty to derive from API Gateway invoke URL after create."
+  description = "Optional override for JWT audience (http_url). If empty, uses the same URL as google_chat_webhook_url (rest API invoke URL + /v1/vincent; verified against stage.invoke_url via check block)."
   default     = ""
 }
 
