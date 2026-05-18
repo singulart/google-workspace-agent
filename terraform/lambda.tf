@@ -56,7 +56,7 @@ resource "aws_lambda_function" "vincent_authorizer" {
   function_name = "${var.name_prefix}-authorizer"
   role          = aws_iam_role.vincent_authorizer.arn
   handler       = "handler.lambda_handler"
-  runtime       = "python3.12"
+  runtime       = "python3.14"
   architectures = ["arm64"]
   timeout       = 10
   memory_size   = 256
@@ -129,7 +129,7 @@ resource "aws_lambda_function" "vincent_agentcore" {
   function_name = "${var.name_prefix}-agentcore"
   role          = aws_iam_role.vincent_agentcore.arn
   handler       = "handler.lambda_handler"
-  runtime       = "python3.12"
+  runtime       = "python3.14"
   architectures = ["arm64"]
   timeout       = 60
   memory_size   = 512

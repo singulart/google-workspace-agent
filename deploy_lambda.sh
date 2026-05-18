@@ -15,7 +15,7 @@ Environment:
   LAMBDA_S3_BUCKET  S3 bucket (default: argorand-lambdas-repository)
   PYTHON            Python interpreter for pip fallback (default: python3)
 
-Authorizer builds use Docker (public.ecr.aws/lambda/python:3.12-arm64) when available
+Authorizer builds use Docker (public.ecr.aws/lambda/python:3.14-arm64) when available
 so native deps (cryptography, etc.) are Linux arm64, not macOS.
 
 Upload keys:
@@ -51,7 +51,7 @@ verify_linux_arm64_binaries() {
 install_authorizer_deps_docker() {
   local src="$1"
   local pkg_dir="$2"
-  local image="public.ecr.aws/lambda/python:3.12-arm64"
+  local image="public.ecr.aws/lambda/python:3.14-arm64"
 
   # Lambda base images use a runtime entrypoint (handler name); override for pip install.
   docker run --rm --platform linux/arm64 \
@@ -70,7 +70,7 @@ install_authorizer_deps_pip() {
   "${PYTHON}" -m pip install -r "${src}/requirements.txt" -t "${pkg_dir}" --quiet \
     --platform manylinux2014_aarch64 \
     --implementation cp \
-    --python-version 3.12
+    --python-version 3.14
 }
 
 build_authorizer() {
@@ -83,7 +83,7 @@ build_authorizer() {
   mkdir -p "${work}/package"
 
   if command -v docker >/dev/null 2>&1; then
-    echo "Building ${name} dependencies in Lambda Python 3.12 arm64 Docker image..."
+    echo "Building ${name} dependencies in Lambda Python 3.14 arm64 Docker image..."
     install_authorizer_deps_docker "${src}" "${work}/package"
   else
     echo "Docker not found; using pip cross-install for manylinux2014_aarch64..."

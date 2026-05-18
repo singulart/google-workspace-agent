@@ -2,7 +2,7 @@
 #   docker build --platform linux/arm64 -t vincent-agent:latest .
 # Push to ECR (see terraform output ecr_repository_url).
 
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 WORKDIR /app
 
