@@ -33,6 +33,46 @@ def greeting_reply() -> str:
     return "Hello — Vincent here. Nice to see you in Chat."
 
 
+def uses_workspace_addon_http_format(body: dict[str, Any]) -> bool:
+    """
+    Google routes many HTTP Chat apps through the Workspace add-ons pipeline when
+    the request includes add-on EventObject fields (see chat.messagePayload).
+    """
+    if isinstance(body.get("chat"), dict):
+        return True
+    if isinstance(body.get("commonEventObject"), dict):
+        return True
+    if isinstance(body.get("authorizationEventObject"), dict):
+        return True
+    return False
+
+
+def format_google_chat_sync_reply(
+    text: str,
+    request_body: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Synchronous HTTP reply shape depends on which pipeline handles the request.
+
+    - Classic Chat API interaction events: top-level Message fields, e.g. {"text": "..."}.
+    - Workspace add-ons HTTP: hostAppDataAction / createMessageAction wrapper.
+      https://developers.google.com/workspace/add-ons/chat/send-messages
+    """
+    if not text.strip():
+        return {}
+    if request_body is not None and uses_workspace_addon_http_format(request_body):
+        return {
+            "hostAppDataAction": {
+                "chatDataAction": {
+                    "createMessageAction": {
+                        "message": {"text": text},
+                    },
+                },
+            },
+        }
+    return {"text": text}
+
+
 def _normalize_google_chat_http_event(body: dict[str, Any]) -> dict[str, Any]:
     """
     Workspace Chat HTTP payloads often wrap the message under `chat.messagePayload`

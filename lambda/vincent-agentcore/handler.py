@@ -197,10 +197,34 @@ def _event_for_log(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _to_chat_reply(agent_result: dict[str, Any]) -> dict[str, Any]:
+def _uses_workspace_addon_http_format(body: dict[str, Any]) -> bool:
+    if isinstance(body.get("chat"), dict):
+        return True
+    if isinstance(body.get("commonEventObject"), dict):
+        return True
+    if isinstance(body.get("authorizationEventObject"), dict):
+        return True
+    return False
+
+
+def _to_chat_reply(
+    agent_result: dict[str, Any],
+    request_body: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     text = (agent_result.get("response") or "").strip()
     if not text:
         return {}
+    if request_body is not None and _uses_workspace_addon_http_format(request_body):
+        # Workspace add-ons HTTP pipeline (chat.messagePayload requests).
+        return {
+            "hostAppDataAction": {
+                "chatDataAction": {
+                    "createMessageAction": {
+                        "message": {"text": text},
+                    },
+                },
+            },
+        }
     return {"text": text}
 
 
@@ -252,4 +276,4 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     except json.JSONDecodeError:
         return _api_response(502, {"error": "Invalid agent runtime response"})
 
-    return _api_response(200, _to_chat_reply(agent_result))
+    return _api_response(200, _to_chat_reply(agent_result, parsed))

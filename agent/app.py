@@ -16,7 +16,7 @@ import os
 import time
 from typing import Any
 
-from handlers import process_invocation_body
+from handlers import format_google_chat_sync_reply, process_invocation_body
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -46,6 +46,7 @@ async def invocations(request: Request) -> JSONResponse:
         )
 
     result = process_invocation_body(body)
+    print(result, flush=True)
     return JSONResponse(result)
 
 
@@ -60,10 +61,7 @@ async def chat_http_root(request: Request) -> JSONResponse:
 
     result = process_invocation_body(body)
     text = (result.get("response") or "").strip()
-    # Synchronous Chat reply shape: https://developers.google.com/workspace/chat/receive-respond-interactions
-    if not text:
-        return JSONResponse({})
-    return JSONResponse({"text": text})
+    return JSONResponse(format_google_chat_sync_reply(text, body))
 
 
 routes = [
