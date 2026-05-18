@@ -67,7 +67,7 @@ def _normalize_google_chat_http_event(body: dict[str, Any]) -> dict[str, Any]:
     Workspace Chat HTTP interactions often use a wrapper:
       { "commonEventObject", "authorizationEventObject", "chat": { "user", "messagePayload" } }
 
-    AgentCore / agent/handlers expect the legacy Apps Script-style event:
+    AgentCore / agent/chat_payload expect the legacy Apps Script-style event:
       { "type"|"eventType": "MESSAGE", "message": {...}, "user", "space", ... }.
     """
     kind = body.get("eventType") or body.get("type")

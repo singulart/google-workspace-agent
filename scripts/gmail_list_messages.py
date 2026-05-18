@@ -30,6 +30,7 @@ import json
 import os
 import re
 import sys
+import urllib.request
 from typing import Any
 
 import google.auth.aws
@@ -115,7 +116,11 @@ def main() -> int:
     creds = _delegated_credentials(args.user, path)
     request = google.auth.transport.requests.Request()
     creds.refresh(request)
-
+    print(creds.token[:20], "...")
+    print(json.load(urllib.request.urlopen(
+        f"https://oauth2.googleapis.com/tokeninfo?access_token={creds.token}"
+    )))
+    
     service = build("gmail", "v1", credentials=creds, cache_discovery=False)
     # userId is the mailbox; with DWD, use the same address you passed as subject.
     result = (
