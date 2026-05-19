@@ -1,3 +1,15 @@
+variable "container_image_tag" {
+  type        = string
+  description = "Image tag in ECR referenced by the AgentCore runtime (push this image before apply if the runtime is new)."
+  default     = "2026-05-16-003"
+}
+
+variable "gmail_mcp_container_image_tag" {
+  type        = string
+  description = "Image tag in ECR referenced by the Gmail MCP runtime."
+  default     = "2026-05-18-001"
+}
+
 variable "aws_region" {
   type        = string
   description = "AWS region for all resources."
@@ -26,12 +38,6 @@ variable "ecr_repository_name" {
   type        = string
   description = "ECR repository for the AgentCore ARM64 container image."
   default     = "vincent-agent"
-}
-
-variable "container_image_tag" {
-  type        = string
-  description = "Image tag in ECR referenced by the AgentCore runtime (push this image before apply if the runtime is new)."
-  default     = "2026-05-16-003"
 }
 
 variable "memory_event_retention_days" {

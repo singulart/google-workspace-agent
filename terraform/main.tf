@@ -208,7 +208,10 @@ data "aws_iam_policy_document" "agent_runtime_inline" {
       "ecr:BatchGetImage",
       "ecr:GetDownloadUrlForLayer",
     ]
-    resources = [aws_ecr_repository.agent.arn]
+    resources = [
+      aws_ecr_repository.agent.arn,
+      aws_ecr_repository.mcp_gmail.arn,
+    ]
   }
 
   statement {
@@ -391,10 +394,12 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
   }
 
   environment_variables = {
-    UPLOADS_BUCKET_NAME = aws_s3_bucket.uploads.bucket
-    SESSIONS_TABLE_NAME = aws_dynamodb_table.sessions.name
-    MEMORY_ID           = aws_bedrockagentcore_memory.main.id
-    AWS_REGION          = var.aws_region
+    UPLOADS_BUCKET_NAME   = aws_s3_bucket.uploads.bucket
+    SESSIONS_TABLE_NAME   = aws_dynamodb_table.sessions.name
+    MEMORY_ID             = aws_bedrockagentcore_memory.main.id
+    AWS_REGION            = var.aws_region
+    GMAIL_MCP_GATEWAY_ARN = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
+    GMAIL_MCP_GATEWAY_URL = aws_bedrockagentcore_gateway.gmail_mcp.gateway_url
     # ADOT / CloudWatch GenAI Observability (with opentelemetry-instrument in container)
     AGENT_OBSERVABILITY_ENABLED = "true"
     OTEL_PYTHON_DISTRO          = "aws_distro"
@@ -471,4 +476,108 @@ resource "aws_bedrockagentcore_agent_runtime_endpoint" "main" {
   # Named endpoints do not auto-track latest (unlike DEFAULT). Pin to the runtime
   # version Terraform just applied so image/tag updates reach production invokes.
   agent_runtime_version = aws_bedrockagentcore_agent_runtime.main.agent_runtime_version
+}
+
+# --- Gmail MCP runtime (container) + endpoint ---
+
+resource "aws_bedrockagentcore_agent_runtime" "gmail_mcp" {
+  agent_runtime_name = "${var.name_prefix}_gmail_mcp"
+  description        = "MCP server for agentic Gmail tasks"
+  role_arn           = aws_iam_role.agent_runtime.arn
+
+  agent_runtime_artifact {
+    container_configuration {
+      container_uri = "${aws_ecr_repository.mcp_gmail.repository_url}:${var.gmail_mcp_container_image_tag}"
+    }
+  }
+
+  network_configuration {
+    network_mode = "VPC"
+    network_mode_config {
+      subnets         = data.aws_subnets.agentcore_compatible.ids
+      security_groups = [aws_security_group.agent_runtime.id]
+    }
+  }
+
+  protocol_configuration {
+    server_protocol = "MCP"
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(data.aws_subnets.agentcore_compatible.ids) > 0
+      error_message = "No default VPC subnets found in Agent Core-compatible AZs (var.agentcore_subnet_availability_zone_ids). Add subnets in a supported zone ID or adjust the variable per AWS docs for your region."
+    }
+  }
+
+  environment_variables = {
+    AGENT_OBSERVABILITY_ENABLED = "true"
+    OTEL_PYTHON_DISTRO          = "aws_distro"
+    OTEL_PYTHON_CONFIGURATOR    = "aws_configurator"
+    OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
+    OTEL_RESOURCE_ATTRIBUTES    = "service.name=gmail_mcp"
+  }
+
+  depends_on = [aws_iam_role_policy.agent_runtime]
+}
+
+resource "aws_cloudwatch_log_group" "gmail_mcp_runtime_application_logs" {
+  name              = "/aws/vendedlogs/bedrock-agentcore/runtime/APPLICATION_LOGS/${aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_id}"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.name_prefix}-gmail-mcp-application-logs"
+  }
+}
+
+resource "aws_cloudwatch_log_delivery_source" "gmail_mcp_runtime_application_logs" {
+  name         = "${var.name_prefix}-ac-gmail-mcp-app-logs"
+  log_type     = "APPLICATION_LOGS"
+  resource_arn = aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_arn
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "gmail_mcp_runtime_application_logs" {
+  name = "${var.name_prefix}-ac-gmail-mcp-app-logs-dest"
+
+  delivery_destination_configuration {
+    destination_resource_arn = aws_cloudwatch_log_group.gmail_mcp_runtime_application_logs.arn
+  }
+}
+
+resource "aws_cloudwatch_log_delivery" "gmail_mcp_runtime_application_logs" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.gmail_mcp_runtime_application_logs.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.gmail_mcp_runtime_application_logs.arn
+
+  depends_on = [
+    aws_cloudwatch_log_delivery_source.gmail_mcp_runtime_application_logs,
+    aws_cloudwatch_log_delivery_destination.gmail_mcp_runtime_application_logs,
+  ]
+}
+
+resource "aws_cloudwatch_log_delivery_source" "gmail_mcp_runtime_traces" {
+  name         = "${var.name_prefix}-ac-gmail-mcp-traces"
+  log_type     = "TRACES"
+  resource_arn = aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_arn
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "gmail_mcp_runtime_traces_xray" {
+  name                      = "${var.name_prefix}-ac-gmail-mcp-traces-dest"
+  delivery_destination_type = "XRAY"
+}
+
+resource "aws_cloudwatch_log_delivery" "gmail_mcp_runtime_traces" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.gmail_mcp_runtime_traces.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.gmail_mcp_runtime_traces_xray.arn
+
+  depends_on = [
+    aws_cloudwatch_log_delivery_source.gmail_mcp_runtime_traces,
+    aws_cloudwatch_log_delivery_destination.gmail_mcp_runtime_traces_xray,
+  ]
+}
+
+resource "aws_bedrockagentcore_agent_runtime_endpoint" "gmail_mcp" {
+  name                  = "gmail_mcp_endpoint"
+  description           = "Invoke surface for gmail_mcp runtime"
+  agent_runtime_id      = aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_id
+  agent_runtime_version = aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_version
 }
