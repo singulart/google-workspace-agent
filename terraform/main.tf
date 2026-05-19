@@ -145,10 +145,19 @@ resource "aws_dynamodb_table" "sessions" {
   }
 }
 
-# --- ECR (ARM64 image required before runtime can succeed) ---
+# --- ECR ---
 
 resource "aws_ecr_repository" "agent" {
   name                 = var.ecr_repository_name
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository" "mcp_gmail" {
+  name                 = "${var.ecr_repository_name}-mcp-gmail"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
