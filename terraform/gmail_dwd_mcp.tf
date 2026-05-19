@@ -77,7 +77,7 @@ resource "aws_cloudwatch_log_group" "gmail_dwd_mcp" {
 resource "aws_lambda_function" "gmail_dwd_mcp" {
   function_name = "${var.name_prefix}-gmail-dwd-mcp"
   role          = aws_iam_role.gmail_dwd_mcp.arn
-  handler       = "handler.lambda_handler"
+  handler       = "handler.handler"
   runtime       = "python3.14"
   architectures = ["arm64"]
   timeout       = 60
@@ -109,11 +109,19 @@ resource "aws_lambda_function_url" "gmail_dwd_mcp" {
   invoke_mode        = "RESPONSE_STREAM"
 }
 
-# Resource-based policy: only the AgentCore Gateway execution role may invoke the URL.
+# Resource-based policy: only the Gateway role may call this Function URL (AWS_IAM).
 resource "aws_lambda_permission" "gmail_dwd_mcp_gateway_function_url" {
   statement_id           = "AllowAgentCoreGatewayInvokeFunctionUrl"
   action                 = "lambda:InvokeFunctionUrl"
   function_name          = aws_lambda_function.gmail_dwd_mcp.function_name
   principal              = aws_iam_role.agentcore_gateway.arn
   function_url_auth_type = "AWS_IAM"
+}
+
+resource "aws_lambda_permission" "gmail_dwd_mcp_gateway_invoke_function" {
+  statement_id             = "AllowAgentCoreGatewayInvokeFunction"
+  action                   = "lambda:InvokeFunction"
+  function_name            = aws_lambda_function.gmail_dwd_mcp.function_name
+  principal                = aws_iam_role.agentcore_gateway.arn
+  invoked_via_function_url = true
 }

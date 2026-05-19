@@ -32,11 +32,14 @@ resource "aws_iam_role" "agentcore_gateway" {
 }
 
 data "aws_iam_policy_document" "agentcore_gateway_inline" {
+  # Function URL with AWS_IAM requires both actions on the caller identity policy.
+  # https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html
   statement {
     sid    = "InvokeGmailDwdMcpFunctionUrl"
     effect = "Allow"
     actions = [
       "lambda:InvokeFunctionUrl",
+      "lambda:InvokeFunction",
     ]
     resources = [aws_lambda_function.gmail_dwd_mcp.arn]
   }
@@ -62,30 +65,72 @@ resource "aws_bedrockagentcore_gateway" "gmail_mcp" {
   }
 }
 
-resource "aws_bedrockagentcore_gateway_target" "gmail_dwd_mcp" {
-  name               = "gmail-dwd-mcp"
-  gateway_identifier = aws_bedrockagentcore_gateway.gmail_mcp.gateway_id
-  description        = "FastMCP server on Lambda"
-
-  credential_provider_configuration {
-    gateway_iam_role {}
-  }
-
-  target_configuration {
-    mcp {
-      mcp_server {
-        endpoint = aws_lambda_function_url.gmail_dwd_mcp.function_url
+# MCP server targets with IAM outbound auth require IamCredentialProvider { service, region? }.
+# aws_bedrockagentcore_gateway_target.gateway_iam_role {} does not send that body yet
+# (https://github.com/hashicorp/terraform-provider-aws/issues/47628). Use CloudFormation
+# until provider >= merge of https://github.com/hashicorp/terraform-provider-aws/pull/47626.
+#
+# Then replace this stack with:
+#   credential_provider_configuration { gateway_iam_role { service = "lambda" } }
+locals {
+  gmail_dwd_mcp_gateway_target_template = jsonencode({
+    AWSTemplateFormatVersion = "2010-09-09"
+    Parameters = {
+      GatewayIdentifier = { Type = "String" }
+      McpEndpoint       = { Type = "String" }
+      AwsRegion         = { Type = "String" }
+    }
+    Resources = {
+      GmailDwdMcpTarget = {
+        Type = "AWS::BedrockAgentCore::GatewayTarget"
+        Properties = {
+          GatewayIdentifier = { Ref = "GatewayIdentifier" }
+          Name              = "gmail-mcp"
+          Description       = "Gmail MCP server on Lambda"
+          CredentialProviderConfigurations = [{
+            CredentialProviderType = "GATEWAY_IAM_ROLE"
+            CredentialProvider = {
+              IamCredentialProvider = {
+                Service = "lambda"
+                Region  = { Ref = "AwsRegion" }
+              }
+            }
+          }]
+          TargetConfiguration = {
+            Mcp = {
+              McpServer = {
+                Endpoint = { Ref = "McpEndpoint" }
+              }
+            }
+          }
+          MetadataConfiguration = {
+            AllowedRequestHeaders  = ["mcp-session-id"]
+            AllowedResponseHeaders = ["mcp-session-id"]
+          }
+        }
       }
     }
-  }
+    Outputs = {
+      TargetId = {
+        Value = { "Fn::GetAtt" = ["GmailDwdMcpTarget", "TargetId"] }
+      }
+    }
+  })
+}
 
-  metadata_configuration {
-    allowed_request_headers  = ["mcp-session-id"]
-    allowed_response_headers = ["mcp-session-id"]
+resource "aws_cloudformation_stack" "gmail_gateway_target" {
+  name          = "${var.name_prefix}-gmail-gateway-target"
+  template_body = local.gmail_dwd_mcp_gateway_target_template
+
+  parameters = {
+    GatewayIdentifier = aws_bedrockagentcore_gateway.gmail_mcp.gateway_id
+    McpEndpoint       = "${aws_lambda_function_url.gmail_dwd_mcp.function_url}/mcp"
+    AwsRegion         = data.aws_region.current.id
   }
 
   depends_on = [
     aws_lambda_permission.gmail_dwd_mcp_gateway_function_url,
+    aws_lambda_permission.gmail_dwd_mcp_gateway_invoke_function,
     aws_iam_role_policy.agentcore_gateway,
   ]
 }
