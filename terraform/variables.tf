@@ -1,12 +1,12 @@
 variable "container_image_tag" {
   type        = string
-  description = "Image tag in ECR referenced by the AgentCore runtime (push this image before apply if the runtime is new)."
-  default     = "2026-05-16-003"
+  description = "ECR tag for the main agent"
+  default     = "2026-05-18-001"
 }
 
 variable "gmail_mcp_container_image_tag" {
   type        = string
-  description = "Image tag in ECR referenced by the Gmail MCP runtime."
+  description = "ECR tag for Gmail MCP runtime"
   default     = "2026-05-18-001"
 }
 
@@ -18,7 +18,7 @@ variable "aws_region" {
 
 variable "name_prefix" {
   type        = string
-  description = "Prefix for resource names (IAM, ECR, AgentCore, etc.)."
+  description = "App name"
   default     = "vincent"
 }
 
