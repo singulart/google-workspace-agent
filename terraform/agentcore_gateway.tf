@@ -169,18 +169,3 @@ resource "aws_iam_role_policy" "agent_runtime_invoke_gateway" {
   role   = aws_iam_role.agent_runtime.id
   policy = data.aws_iam_policy_document.agent_runtime_invoke_gateway.json
 }
-
-output "gmail_mcp_gateway_id" {
-  description = "AgentCore gateway ID for Gmail MCP tool catalog."
-  value       = aws_bedrockagentcore_gateway.gmail_mcp.gateway_id
-}
-
-output "gmail_mcp_gateway_url" {
-  description = "MCP URL for clients (SigV4 InvokeGateway)."
-  value       = aws_bedrockagentcore_gateway.gmail_mcp.gateway_url
-}
-
-output "gmail_mcp_gateway_target_id" {
-  description = "Gateway target ID (use with synchronize-gateway-targets after tool changes)."
-  value       = aws_cloudformation_stack.gmail_mcp_gateway_target.outputs["TargetId"]
-}

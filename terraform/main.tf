@@ -355,6 +355,16 @@ data "aws_iam_policy_document" "agent_runtime_inline" {
       values   = ["bedrock-agentcore"]
     }
   }
+
+  statement {
+    sid    = "ReadGmailWifConfigFromSsm"
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+    ]
+    resources = [aws_ssm_parameter.gmail_wif.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "agent_runtime" {
@@ -511,6 +521,7 @@ resource "aws_bedrockagentcore_agent_runtime" "gmail_mcp" {
   }
 
   environment_variables = {
+    GMAIL_WIF_SSM_PARAMETER     = aws_ssm_parameter.gmail_wif.name
     AGENT_OBSERVABILITY_ENABLED = "true"
     OTEL_PYTHON_DISTRO          = "aws_distro"
     OTEL_PYTHON_CONFIGURATOR    = "aws_configurator"
