@@ -38,48 +38,6 @@ resource "aws_cloudwatch_log_resource_policy" "xray_transaction_search" {
   })
 }
 
-data "aws_vpc" "default" {
-  default = true
-}
-
-# Default-VPC subnets limited to AZ IDs that Bedrock Agent Core supports in us-east-1
-# (see error: use1-az1, use1-az2, use1-az4 — not use1-az3/5/6).
-data "aws_subnets" "agentcore_compatible" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-
-  filter {
-    name   = "default-for-az"
-    values = ["true"]
-  }
-
-  filter {
-    name   = "availability-zone-id"
-    values = var.agentcore_subnet_availability_zone_ids
-  }
-}
-
-resource "aws_security_group" "agent_runtime" {
-  name        = "${var.name_prefix}-agentcore-runtime"
-  description = "Egress for Bedrock AgentCore runtime in VPC"
-  vpc_id      = data.aws_vpc.default.id
-
-  egress {
-    description      = "HTTPS (APIs, Bedrock, etc.)"
-    from_port        = 443
-    to_port          = 443
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name = "${var.name_prefix}-agentcore-runtime"
-  }
-}
-
 # --- Encrypted uploads bucket (SSE-S3; no extra KMS key monthly fee) ---
 
 resource "aws_s3_bucket" "uploads" {
@@ -389,18 +347,7 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
   }
 
   network_configuration {
-    network_mode = "VPC"
-    network_mode_config {
-      subnets         = data.aws_subnets.agentcore_compatible.ids
-      security_groups = [aws_security_group.agent_runtime.id]
-    }
-  }
-
-  lifecycle {
-    precondition {
-      condition     = length(data.aws_subnets.agentcore_compatible.ids) > 0
-      error_message = "No default VPC subnets found in Agent Core-compatible AZs (var.agentcore_subnet_availability_zone_ids). Add subnets in a supported zone ID or adjust the variable per AWS docs for your region."
-    }
+    network_mode = "PUBLIC"
   }
 
   environment_variables = {
@@ -502,22 +449,11 @@ resource "aws_bedrockagentcore_agent_runtime" "gmail_mcp" {
   }
 
   network_configuration {
-    network_mode = "VPC"
-    network_mode_config {
-      subnets         = data.aws_subnets.agentcore_compatible.ids
-      security_groups = [aws_security_group.agent_runtime.id]
-    }
+    network_mode = "PUBLIC"
   }
 
   protocol_configuration {
     server_protocol = "MCP"
-  }
-
-  lifecycle {
-    precondition {
-      condition     = length(data.aws_subnets.agentcore_compatible.ids) > 0
-      error_message = "No default VPC subnets found in Agent Core-compatible AZs (var.agentcore_subnet_availability_zone_ids). Add subnets in a supported zone ID or adjust the variable per AWS docs for your region."
-    }
   }
 
   environment_variables = {

@@ -31,7 +31,7 @@ def _bedrock_model() -> BedrockModel:
     region = os.environ.get("AWS_REGION", "us-east-1")
     model_id = os.environ.get(
         "BEDROCK_MODEL_ID",
-        "us.anthropic.claude-sonnet-4-20250514-v1:0",
+        "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
     )
     return BedrockModel(
         model_id=model_id,

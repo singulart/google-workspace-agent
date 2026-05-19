@@ -1,7 +1,7 @@
 variable "container_image_tag" {
   type        = string
   description = "ECR tag for the main agent"
-  default     = "2026-05-18-001"
+  default     = "2026-05-19-001"
 }
 
 variable "gmail_mcp_container_image_tag" {
@@ -86,13 +86,3 @@ variable "google_chat_http_audience" {
   default     = ""
 }
 
-variable "agentcore_subnet_availability_zone_ids" {
-  type        = list(string)
-  description = <<-EOT
-    Subnet availability zone IDs where Bedrock Agent Core can place ENIs. In us-east-1 the
-    service currently allows use1-az1, use1-az2, and use1-az4 only (AZ names like us-east-1a
-    differ per account; use zone IDs from EC2 → Subnets or `aws ec2 describe-availability-zones`).
-    Default subnets in other zone IDs must be excluded. Override when using another region.
-  EOT
-  default     = ["use1-az1", "use1-az2", "use1-az4"]
-}

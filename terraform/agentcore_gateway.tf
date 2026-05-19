@@ -76,6 +76,64 @@ resource "aws_bedrockagentcore_gateway" "gmail_mcp" {
   }
 }
 
+# AgentCore console "Log delivery" for gateways requires CloudWatch Logs V2 deliveries
+# (gateways do not auto-configure destinations like some runtime flows). See:
+# https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-configure.html
+
+resource "aws_cloudwatch_log_group" "gateway_application_logs" {
+  name              = "/aws/vendedlogs/bedrock-agentcore/gateway/APPLICATION_LOGS/${aws_bedrockagentcore_gateway.gmail_mcp.gateway_id}"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.name_prefix}-agentcore-gateway-application-logs"
+  }
+}
+
+resource "aws_cloudwatch_log_delivery_source" "gateway_application_logs" {
+  name         = "${var.name_prefix}-ac-gateway-app-logs"
+  log_type     = "APPLICATION_LOGS"
+  resource_arn = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "gateway_application_logs" {
+  name = "${var.name_prefix}-ac-gateway-app-logs-dest"
+
+  delivery_destination_configuration {
+    destination_resource_arn = aws_cloudwatch_log_group.gateway_application_logs.arn
+  }
+}
+
+resource "aws_cloudwatch_log_delivery" "gateway_application_logs" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.gateway_application_logs.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.gateway_application_logs.arn
+
+  depends_on = [
+    aws_cloudwatch_log_delivery_source.gateway_application_logs,
+    aws_cloudwatch_log_delivery_destination.gateway_application_logs,
+  ]
+}
+
+resource "aws_cloudwatch_log_delivery_source" "gateway_traces" {
+  name         = "${var.name_prefix}-ac-gateway-traces"
+  log_type     = "TRACES"
+  resource_arn = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "gateway_traces_xray" {
+  name                      = "${var.name_prefix}-ac-gateway-traces-dest"
+  delivery_destination_type = "XRAY"
+}
+
+resource "aws_cloudwatch_log_delivery" "gateway_traces" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.gateway_traces.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.gateway_traces_xray.arn
+
+  depends_on = [
+    aws_cloudwatch_log_delivery_source.gateway_traces,
+    aws_cloudwatch_log_delivery_destination.gateway_traces_xray,
+  ]
+}
+
 # MCP server targets with IAM outbound auth require IamCredentialProvider { service, region? }.
 # aws_bedrockagentcore_gateway_target.gateway_iam_role {} does not send that body yet
 # (https://github.com/hashicorp/terraform-provider-aws/issues/47628). Use CloudFormation
