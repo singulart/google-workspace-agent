@@ -145,10 +145,19 @@ resource "aws_dynamodb_table" "sessions" {
   }
 }
 
-# --- ECR (ARM64 image required before runtime can succeed) ---
+# --- ECR ---
 
 resource "aws_ecr_repository" "agent" {
   name                 = var.ecr_repository_name
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository" "mcp_gmail" {
+  name                 = "${var.ecr_repository_name}-mcp-gmail"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -456,9 +465,9 @@ resource "aws_cloudwatch_log_delivery" "runtime_traces" {
 }
 
 resource "aws_bedrockagentcore_agent_runtime_endpoint" "main" {
-  name                  = "${var.name_prefix}_endpoint"
-  description           = "Invoke surface for ${var.name_prefix} runtime"
-  agent_runtime_id      = aws_bedrockagentcore_agent_runtime.main.agent_runtime_id
+  name             = "${var.name_prefix}_endpoint"
+  description      = "Invoke surface for ${var.name_prefix} runtime"
+  agent_runtime_id = aws_bedrockagentcore_agent_runtime.main.agent_runtime_id
   # Named endpoints do not auto-track latest (unlike DEFAULT). Pin to the runtime
   # version Terraform just applied so image/tag updates reach production invokes.
   agent_runtime_version = aws_bedrockagentcore_agent_runtime.main.agent_runtime_version

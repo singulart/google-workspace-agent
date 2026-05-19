@@ -2,7 +2,7 @@
 #   docker build --platform linux/arm64 -t vincent-agent:latest .
 # Push to ECR (see terraform output ecr_repository_url).
 
-FROM python:3.14-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 WORKDIR /app
 
@@ -17,7 +17,5 @@ COPY agent/ .
 
 EXPOSE 8080
 
-# Use plain uvicorn so the process binds quickly. `opentelemetry-instrument` + ADOT
-# can exceed AgentCore's ~120s runtime initialization budget (cold start + OTLP setup).
-# Re-introduce OTEL after Transaction Search/destinations are ACTIVE if you need ADOT.
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# BedrockAgentCoreApp serves /ping and /invocations (AgentCore HTTP contract).
+CMD ["python", "main.py"]

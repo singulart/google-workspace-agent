@@ -10,6 +10,7 @@ terraform/state.tf
 # Python cache
 __pycache__/
 .venv-agent/
+agent/.venv/
 
 # Lambda build artifacts
 .lambda-build/
