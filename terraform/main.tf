@@ -351,20 +351,12 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
   }
 
   environment_variables = {
-    UPLOADS_BUCKET_NAME   = aws_s3_bucket.uploads.bucket
-    SESSIONS_TABLE_NAME   = aws_dynamodb_table.sessions.name
-    MEMORY_ID             = aws_bedrockagentcore_memory.main.id
-    AWS_REGION            = var.aws_region
-    GMAIL_MCP_GATEWAY_ARN = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
-    GMAIL_MCP_GATEWAY_URL = aws_bedrockagentcore_gateway.gmail_mcp.gateway_url
-    # ADOT / CloudWatch GenAI Observability (opentelemetry-instrument in Dockerfile CMD)
-    AGENT_OBSERVABILITY_ENABLED       = "true"
-    OTEL_PYTHON_DISTRO                = "aws_distro"
-    OTEL_PYTHON_CONFIGURATOR          = "aws_configurator"
-    OTEL_EXPORTER_OTLP_PROTOCOL      = "http/protobuf"
-    OTEL_TRACES_EXPORTER              = "otlp"
-    OTEL_SEMCONV_STABILITY_OPT_IN     = "gen_ai_latest_experimental"
-    OTEL_RESOURCE_ATTRIBUTES          = "service.name=${var.name_prefix}_agent"
+    UPLOADS_BUCKET_NAME         = aws_s3_bucket.uploads.bucket
+    SESSIONS_TABLE_NAME         = aws_dynamodb_table.sessions.name
+    MEMORY_ID                   = aws_bedrockagentcore_memory.main.id
+    GMAIL_MCP_GATEWAY_ARN       = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
+    GMAIL_MCP_GATEWAY_URL       = aws_bedrockagentcore_gateway.gmail_mcp.gateway_url
+    GMAIL_WIF_SSM_PARAMETER     = aws_ssm_parameter.gmail_wif.name
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]
@@ -459,11 +451,6 @@ resource "aws_bedrockagentcore_agent_runtime" "gmail_mcp" {
 
   environment_variables = {
     GMAIL_WIF_SSM_PARAMETER     = aws_ssm_parameter.gmail_wif.name
-    AGENT_OBSERVABILITY_ENABLED = "true"
-    OTEL_PYTHON_DISTRO          = "aws_distro"
-    OTEL_PYTHON_CONFIGURATOR    = "aws_configurator"
-    OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
-    OTEL_RESOURCE_ATTRIBUTES    = "service.name=gmail_mcp"
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]

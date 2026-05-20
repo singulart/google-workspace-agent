@@ -27,6 +27,8 @@ _AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 _client = boto3.client("bedrock-agentcore", region_name=_AWS_REGION)
 
 _SESSION_SAFE_RE = re.compile(r"[^a-zA-Z0-9._:-]+")
+_RUNTIME_SESSION_ID_MIN_LEN = 33
+_RUNTIME_SESSION_ID_MAX_LEN = 256
 
 
 def _api_response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -101,29 +103,28 @@ def _normalize_google_chat_http_event(body: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
+def _space_name_from_chat_event(chat_event: dict[str, Any]) -> str:
+    space = chat_event.get("space")
+    if not isinstance(space, dict) and isinstance(chat_event.get("message"), dict):
+        space = chat_event["message"].get("space")
+    if isinstance(space, dict):
+        name = space.get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    return "unknown-space"
+
+
 def _runtime_session_id(chat_event: dict[str, Any]) -> str:
     """
-    Bedrock AgentCore `runtimeSessionId` is chosen by the client to scope conversation
-    state — it is not assigned by Google. Prefer a Chat thread id when present so
-    threaded DMs stay coherent; otherwise space + user.
+    Bedrock AgentCore `runtimeSessionId` scopes conversation state per Chat space.
+
+    Uses only `space.name` (room-wide memory). InvokeAgentRuntime requires 33–256
+    characters; shorter values are right-padded with '-'.
     """
-    thread: dict[str, Any] = {}
-    if isinstance(chat_event.get("thread"), dict):
-        thread = chat_event["thread"]
-    elif isinstance(chat_event.get("message"), dict):
-        mt = chat_event["message"].get("thread")
-        if isinstance(mt, dict):
-            thread = mt
-    thread_name = (thread.get("name") or "").strip()
-    if thread_name:
-        raw = thread_name
-    else:
-        space = chat_event.get("space") or {}
-        user = chat_event.get("user") or {}
-        space_name = space.get("name") or "unknown-space"
-        user_name = user.get("name") or "unknown-user"
-        raw = f"{space_name}:{user_name}"
-    safe = _SESSION_SAFE_RE.sub("-", raw)[:256]
+    raw = _space_name_from_chat_event(chat_event)
+    safe = _SESSION_SAFE_RE.sub("-", raw)[:_RUNTIME_SESSION_ID_MAX_LEN]
+    if len(safe) < _RUNTIME_SESSION_ID_MIN_LEN:
+        safe = safe.ljust(_RUNTIME_SESSION_ID_MIN_LEN, "-")
     return safe or str(uuid.uuid4())
 
 
