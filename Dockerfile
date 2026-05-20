@@ -15,7 +15,9 @@ ENV PYTHONUNBUFFERED=1 \
     OTEL_AWS_APPLICATION_SIGNALS_ENABLED=false \
     OTEL_TRACES_EXPORTER=otlp \
     OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
-    OTEL_RESOURCE_ATTRIBUTES=service.name=vincent_agent
+    OTEL_RESOURCE_ATTRIBUTES=service.name=vincent_agent \
+    OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental,gen_ai_tool_definitions \
+    OTEL_TRACES_SAMPLER=always_on
 
 COPY agent/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \

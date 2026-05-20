@@ -1,5 +1,6 @@
 bedrock-agentcore[strands-agents]>=1.10.0
 strands-agents>=1.40.0
+strands-agents[otel]
 boto3>=1.43.11
 mcp-proxy-for-aws>=1.4.2
 aws-opentelemetry-distro>=0.17.0
