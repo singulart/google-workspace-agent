@@ -1,13 +1,19 @@
-# Amazon Bedrock AgentCore requires linux/arm64. Build with:
-#   docker build --platform linux/arm64 -t vincent-agent:latest .
-# Push to ECR (see terraform output ecr_repository_url).
+FROM python:3.13-slim-bookworm AS builder
 
-FROM python:3.13-slim-bookworm
+WORKDIR /build
+
+COPY agent/requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt -t /deps \
+    && find /deps/bin -type f -exec sed -i 's|#!/usr/local/bin/python3.13|#!/usr/bin/python3.13|g' {} +
+
+FROM gcr.io/distroless/python3
 
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/deps \
     AGENT_OBSERVABILITY_ENABLED=true \
     OTEL_PYTHON_DISTRO=aws_distro \
     OTEL_PYTHON_CONFIGURATOR=aws_configurator \
@@ -19,14 +25,9 @@ ENV PYTHONUNBUFFERED=1 \
     OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental,gen_ai_tool_definitions \
     OTEL_TRACES_SAMPLER=always_on
 
-COPY agent/requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
-
+COPY --from=builder /deps /deps
 COPY agent/ .
 
 EXPOSE 8080
 
-# ADOT auto-instrumentation; runtime env sets aws_distro + AgentCore export.
-# BedrockAgentCoreApp serves /ping and /invocations (AgentCore HTTP contract).
-CMD ["opentelemetry-instrument", "python", "main.py"]
+CMD ["/deps/bin/opentelemetry-instrument", "python", "main.py"]
