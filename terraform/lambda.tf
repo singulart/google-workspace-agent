@@ -110,6 +110,8 @@ data "aws_iam_policy_document" "vincent_agentcore_invoke" {
     resources = [
       aws_bedrockagentcore_agent_runtime.main.agent_runtime_arn,
       "${aws_bedrockagentcore_agent_runtime.main.agent_runtime_arn}/*",
+      aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_arn,
+      "${aws_bedrockagentcore_agent_runtime.gmail_mcp.agent_runtime_arn}/*",
     ]
   }
 }
