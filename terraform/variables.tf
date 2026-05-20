@@ -1,13 +1,13 @@
 variable "container_image_tag" {
   type        = string
   description = "ECR tag for the main agent"
-  default     = "2026-05-20-001"
+  default     = "2026-05-20-002"
 }
 
 variable "gmail_mcp_container_image_tag" {
   type        = string
   description = "ECR tag for Gmail MCP runtime"
-  default     = "2026-05-18-001"
+  default     = "2026-05-20-001"
 }
 
 variable "aws_region" {

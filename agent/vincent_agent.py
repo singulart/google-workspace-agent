@@ -11,6 +11,8 @@ from strands import Agent
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
 
+from telemetry import trace_attributes_for_invocation
+
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
@@ -108,6 +110,10 @@ def create_vincent_agent(*, session_id: str, actor_id: str) -> Agent:
         "system_prompt": _SYSTEM_PROMPT,
         "session_manager": session_manager,
         "callback_handler": None,
+        "trace_attributes": trace_attributes_for_invocation(
+            session_id=session_id,
+            actor_id=actor_id,
+        ),
     }
     if _GMAIL_MCP_CLIENT is None:
         return Agent(**agent_kwargs)

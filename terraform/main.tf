@@ -357,12 +357,14 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
     AWS_REGION            = var.aws_region
     GMAIL_MCP_GATEWAY_ARN = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
     GMAIL_MCP_GATEWAY_URL = aws_bedrockagentcore_gateway.gmail_mcp.gateway_url
-    # ADOT / CloudWatch GenAI Observability (with opentelemetry-instrument in container)
-    AGENT_OBSERVABILITY_ENABLED = "true"
-    OTEL_PYTHON_DISTRO          = "aws_distro"
-    OTEL_PYTHON_CONFIGURATOR    = "aws_configurator"
-    OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
-    OTEL_RESOURCE_ATTRIBUTES    = "service.name=${var.name_prefix}_agent"
+    # ADOT / CloudWatch GenAI Observability (opentelemetry-instrument in Dockerfile CMD)
+    AGENT_OBSERVABILITY_ENABLED       = "true"
+    OTEL_PYTHON_DISTRO                = "aws_distro"
+    OTEL_PYTHON_CONFIGURATOR          = "aws_configurator"
+    OTEL_EXPORTER_OTLP_PROTOCOL      = "http/protobuf"
+    OTEL_TRACES_EXPORTER              = "otlp"
+    OTEL_SEMCONV_STABILITY_OPT_IN     = "gen_ai_latest_experimental"
+    OTEL_RESOURCE_ATTRIBUTES          = "service.name=${var.name_prefix}_agent"
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]
@@ -375,7 +377,6 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
 resource "aws_cloudwatch_log_group" "runtime_application_logs" {
   name              = "/aws/vendedlogs/bedrock-agentcore/runtime/APPLICATION_LOGS/${aws_bedrockagentcore_agent_runtime.main.agent_runtime_id}"
   retention_in_days = 30
-
   tags = {
     Name = "${var.name_prefix}-agentcore-application-logs"
   }

@@ -16,6 +16,7 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.runtime.context import RequestContext
 
 from chat_payload import extract_invocation_input
+from telemetry import configure_observability
 from vincent_agent import create_vincent_agent, run_agent
 
 logging.basicConfig(
@@ -23,6 +24,8 @@ logging.basicConfig(
     format="%(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+configure_observability()
 
 app = BedrockAgentCoreApp()
 

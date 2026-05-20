@@ -17,5 +17,6 @@ COPY agent/ .
 
 EXPOSE 8080
 
+# ADOT auto-instrumentation; runtime env sets aws_distro + AgentCore export.
 # BedrockAgentCoreApp serves /ping and /invocations (AgentCore HTTP contract).
-CMD ["python", "main.py"]
+CMD ["opentelemetry-instrument", "python", "main.py"]
