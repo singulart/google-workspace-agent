@@ -72,30 +72,59 @@ def create_vincent_agent(*, session_id: str, actor_id: str) -> Agent:
     )
 
 
+def _text_from_content_blocks(content: Any) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if not isinstance(content, list):
+        return ""
+
+    parts: list[str] = []
+    for block in content:
+        if isinstance(block, dict):
+            text = block.get("text")
+            if text:
+                parts.append(str(text))
+        elif hasattr(block, "text") and block.text:
+            parts.append(str(block.text))
+    return "\n".join(parts).strip()
+
+
+def _text_from_message_dict(message: dict[str, Any]) -> str:
+    text = _text_from_content_blocks(message.get("content"))
+    if text:
+        return text
+    nested = message.get("message")
+    if isinstance(nested, dict):
+        return _text_from_message_dict(nested)
+    if isinstance(nested, str):
+        return nested.strip()
+    return ""
+
+
 def assistant_text(result: Any) -> str:
     if isinstance(result, str):
         return result.strip()
 
+    if isinstance(result, dict):
+        return _text_from_message_dict(result)
+
     message = getattr(result, "message", None)
     if isinstance(message, str):
         return message.strip()
-    if message is None:
-        return str(result).strip()
+    if isinstance(message, dict):
+        return _text_from_message_dict(message)
 
-    content = getattr(message, "content", None)
-    if isinstance(content, str):
-        return content.strip()
-    if isinstance(content, list):
-        parts: list[str] = []
-        for block in content:
-            if isinstance(block, dict) and block.get("text"):
-                parts.append(str(block["text"]))
-            elif hasattr(block, "text") and block.text:
-                parts.append(str(block.text))
-        if parts:
-            return "\n".join(parts).strip()
+    for source in (message, result):
+        if source is None:
+            continue
+        content = getattr(source, "content", None)
+        text = _text_from_content_blocks(content)
+        if text:
+            return text
 
-    return str(message).strip()
+    if message is not None:
+        return str(message).strip()
+    return str(result).strip()
 
 
 def run_agent(agent: Agent, user_message: str) -> str:
