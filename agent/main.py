@@ -15,7 +15,8 @@ import uuid
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.runtime.context import RequestContext
 
-from chat_payload import extract_invocation_input
+from chat_google import try_post_chat_message
+from chat_payload import delivery_from_payload, extract_invocation_input
 from telemetry import configure_observability
 from vincent_agent import create_vincent_agent, run_agent
 
@@ -52,13 +53,18 @@ def invoke(payload: dict, context: RequestContext) -> dict:
         invocation.actor_id,
     )
 
+    delivery = delivery_from_payload(payload)
+
     agent = create_vincent_agent(session_id=session_id, actor_id=invocation.actor_id)
     text = run_agent(agent, invocation.user_message)
+
+    posted = try_post_chat_message(delivery, text)
 
     return {
         "response": text,
         "status": "success",
         "source": invocation.source,
+        "chat_posted": posted,
     }
 
 

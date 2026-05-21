@@ -1,5 +1,9 @@
 """
-API Gateway proxy integration: Google Chat event -> AgentCore InvokeAgentRuntime -> Chat reply.
+API Gateway proxy integration: Google Chat event -> AgentCore InvokeAgentRuntime.
+
+The HTTP response is always 200 with an empty JSON object. The agent runtime posts
+the user-visible reply via the Chat API (spaces.messages.create) using _delivery
+on the invoke payload.
 """
 
 from __future__ import annotations
@@ -15,6 +19,8 @@ from typing import Any
 
 import boto3
 
+from chat_payload import build_chat_delivery
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -29,6 +35,12 @@ _client = boto3.client("bedrock-agentcore", region_name=_AWS_REGION)
 _SESSION_SAFE_RE = re.compile(r"[^a-zA-Z0-9._:-]+")
 _RUNTIME_SESSION_ID_MIN_LEN = 33
 _RUNTIME_SESSION_ID_MAX_LEN = 256
+
+_ACK_RESPONSE: dict[str, Any] = {
+    "statusCode": 200,
+    "headers": {"Content-Type": "application/json"},
+    "body": "{}",
+}
 
 
 def _api_response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -128,48 +140,17 @@ def _runtime_session_id(chat_event: dict[str, Any]) -> str:
     return safe or str(uuid.uuid4())
 
 
-def _envelope_payload(chat_event: dict[str, Any], messaging_identity: dict[str, Any] | None) -> bytes:
+def _envelope_payload(
+    chat_event: dict[str, Any],
+    messaging_identity: dict[str, Any] | None,
+    delivery: dict[str, Any] | None,
+) -> bytes:
     body: dict[str, Any] = dict(chat_event)
     if messaging_identity:
         body["_messaging"] = messaging_identity
+    if delivery:
+        body["_delivery"] = delivery
     return json.dumps(body).encode("utf-8")
-
-
-def _read_agentcore_body(response: dict[str, Any]) -> dict[str, Any]:
-    content_type = (response.get("contentType") or "").lower()
-    stream = response.get("response")
-    if stream is None:
-        return {}
-
-    if "text/event-stream" in content_type:
-        chunks: list[str] = []
-        for line in stream.iter_lines(chunk_size=4096):
-            if not line:
-                continue
-            text = line.decode("utf-8") if isinstance(line, bytes) else str(line)
-            if text.startswith("data: "):
-                chunks.append(text[6:])
-        joined = "\n".join(chunks)
-        return json.loads(joined) if joined.strip() else {}
-
-    parts: list[str] = []
-    if hasattr(stream, "read"):
-        data = stream.read()
-        if isinstance(data, bytes):
-            parts.append(data.decode("utf-8"))
-        else:
-            parts.append(str(data))
-    else:
-        for chunk in stream:
-            if isinstance(chunk, bytes):
-                parts.append(chunk.decode("utf-8"))
-            else:
-                parts.append(str(chunk))
-
-    text = "".join(parts).strip()
-    if not text:
-        return {}
-    return json.loads(text)
 
 
 def _event_for_log(event: dict[str, Any]) -> dict[str, Any]:
@@ -198,37 +179,6 @@ def _event_for_log(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _uses_workspace_addon_http_format(body: dict[str, Any]) -> bool:
-    if isinstance(body.get("chat"), dict):
-        return True
-    if isinstance(body.get("commonEventObject"), dict):
-        return True
-    if isinstance(body.get("authorizationEventObject"), dict):
-        return True
-    return False
-
-
-def _to_chat_reply(
-    agent_result: dict[str, Any],
-    request_body: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    text = (agent_result.get("response") or "").strip()
-    if not text:
-        return {}
-    if request_body is not None and _uses_workspace_addon_http_format(request_body):
-        # Workspace add-ons HTTP pipeline (chat.messagePayload requests).
-        return {
-            "hostAppDataAction": {
-                "chatDataAction": {
-                    "createMessageAction": {
-                        "message": {"text": text},
-                    },
-                },
-            },
-        }
-    return {"text": text}
-
-
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         payload = json.dumps(_event_for_log(event), default=str)
@@ -252,14 +202,22 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
     chat_event = _normalize_google_chat_http_event(parsed)
 
+    request_context = event.get("requestContext") or {}
+    apigw_request_id = request_context.get("requestId")
+    request_id = apigw_request_id if isinstance(apigw_request_id, str) else None
+
+    delivery = build_chat_delivery(parsed, request_id=request_id)
+    if delivery:
+        logger.info("delivery space=%s thread=%s", delivery.get("space_name"), delivery.get("thread_name"))
+
     messaging_identity = _parse_messaging_identity(event)
-    payload = _envelope_payload(chat_event, messaging_identity)
+    payload_bytes = _envelope_payload(chat_event, messaging_identity, delivery)
     session_id = _runtime_session_id(chat_event)
 
     invoke_kwargs: dict[str, Any] = {
         "agentRuntimeArn": _AGENT_RUNTIME_ARN,
         "runtimeSessionId": session_id,
-        "payload": payload,
+        "payload": payload_bytes,
         "contentType": "application/json",
         "accept": "application/json",
     }
@@ -267,14 +225,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         invoke_kwargs["qualifier"] = _RUNTIME_ENDPOINT_QUALIFIER
 
     try:
-        response = _client.invoke_agent_runtime(**invoke_kwargs)
+        _client.invoke_agent_runtime(**invoke_kwargs)
     except Exception as exc:
-        print(f"InvokeAgentRuntime failed: {exc!r}")
-        return _api_response(502, {"error": "Agent runtime invocation failed"})
+        logger.exception("InvokeAgentRuntime failed: %s", exc)
 
-    try:
-        agent_result = _read_agentcore_body(response)
-    except json.JSONDecodeError:
-        return _api_response(502, {"error": "Invalid agent runtime response"})
-
-    return _api_response(200, _to_chat_reply(agent_result, parsed))
+    return dict(_ACK_RESPONSE)

@@ -110,6 +110,7 @@ build_agentcore() {
   rm -rf "${work}"
   mkdir -p "${work}/package"
   cp "${src}/handler.py" "${work}/package/"
+  cp "${ROOT}/agent/chat_payload.py" "${work}/package/"
   (cd "${work}/package" && zip -qr "${zip}" .)
   aws s3 cp "${zip}" "s3://${BUCKET}/${name}/deployment.zip" --checksum-algorithm SHA256
   echo "Uploaded s3://${BUCKET}/${name}/deployment.zip"
