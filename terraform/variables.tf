@@ -1,18 +1,17 @@
 variable "container_image_tag" {
   type        = string
-  description = "ECR tag for the main agent"
-  default     = "2026-05-20-009"
+  description = "ECR tag for the Vincent agent"
+  default     = "2026-05-21-001"
 }
 
 variable "gmail_mcp_container_image_tag" {
   type        = string
-  description = "ECR tag for Gmail MCP runtime"
+  description = "ECR tag for Gmail MCP"
   default     = "2026-05-20-003"
 }
 
 variable "aws_region" {
   type        = string
-  description = "AWS region for all resources."
   default     = "us-east-1"
 }
 
