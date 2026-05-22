@@ -11,6 +11,8 @@ import boto3
 import google.auth.aws
 from googleapiclient.discovery import build
 
+from chat_format import format_text_for_google_chat
+
 logger = logging.getLogger(__name__)
 
 CHAT_BOT_SCOPE = "https://www.googleapis.com/auth/chat.bot"
@@ -85,7 +87,7 @@ def post_chat_message(delivery: dict[str, Any], text: str) -> dict[str, Any]:
     if not isinstance(space_name, str) or not space_name.strip():
         raise ValueError("delivery.space_name is required")
 
-    body: dict[str, Any] = {"text": text.strip()}
+    body: dict[str, Any] = {"text": format_text_for_google_chat(text).strip()}
     thread_name = delivery.get("thread_name")
     if isinstance(thread_name, str) and thread_name.strip():
         body["thread"] = {"name": thread_name.strip()}

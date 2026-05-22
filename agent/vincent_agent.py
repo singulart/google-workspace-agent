@@ -12,6 +12,7 @@ from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
 from strands_tools.current_time import current_time
 
+from chat_format import format_text_for_google_chat
 from telemetry import trace_attributes_for_invocation
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,18 @@ logger = logging.getLogger(__name__)
 _SYSTEM_PROMPT = """\
 You are Vincent, a helpful assistant in Google Chat for a personal Gmail / Workspace user.
 
-Answer clearly and concisely in plain text suitable for a chat message (no markdown tables).
+Answer clearly and concisely. Mandatory Formatting rules:
+- Bold: single asterisks only — *English* — never **English**
+- Italic: underscores — _English_
+- Strikethrough: ~English~
+- Inline code: `example`
+- Do not use # headings, markdown tables, or [text](url) links
+- Wrong → right: **snow** → *snow*; __snow__ → *snow*; *snow* when you mean italic → _snow_
+
 Use the MCP tools available to you for Gmail tasks when appropriate.
-When describing your capabilities or tool list, only mention tools you actually have from the \
-connected MCP server—never invent tool names.
+For the current date or time, call the ``current_time`` tool (do not guess).
+When describing your capabilities or tool list, only mention tools you actually have—never \
+invent tool names.
 When you cannot complete a Gmail action (no tools connected or a tool failed), say so plainly \
 rather than inventing email contents or results.
 """
@@ -128,13 +137,15 @@ def create_vincent_agent(*, session_id: str, actor_id: str) -> Agent:
     }
     agent_kwargs["tools"] = _vincent_tools()
     try:
-        return Agent(**agent_kwargs)
+        agent = Agent(**agent_kwargs)
     except ValueError as exc:
         if "Failed to load tool" not in str(exc):
             raise
         logger.warning("Gmail MCP tools unavailable, continuing without: %s", exc)
         agent_kwargs["tools"] = [current_time]
-        return Agent(**agent_kwargs)
+        agent = Agent(**agent_kwargs)
+    logger.info("Vincent tools registered: %s", agent.tool_names)
+    return agent
 
 
 def _text_from_content_blocks(content: Any) -> str:
@@ -201,4 +212,5 @@ def run_agent(agent: Agent, user_message: str) -> str:
             "Something went wrong while processing your message. "
             "Please try again in a moment."
         )
-    return assistant_text(result) or "I couldn't generate a reply."
+    raw = assistant_text(result) or "I couldn't generate a reply."
+    return format_text_for_google_chat(raw)

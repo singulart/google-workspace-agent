@@ -357,6 +357,7 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
     GMAIL_MCP_GATEWAY_ARN       = aws_bedrockagentcore_gateway.gmail_mcp.gateway_arn
     GMAIL_MCP_GATEWAY_URL       = aws_bedrockagentcore_gateway.gmail_mcp.gateway_url
     GCP_WIF_CREDENTIAL_CONFIG_SSM_PARAMETER = aws_ssm_parameter.gcp_wif.name
+    DEFAULT_TIMEZONE            = local.default_timezone
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]
@@ -450,8 +451,7 @@ resource "aws_bedrockagentcore_agent_runtime" "gmail_mcp" {
   }
 
   environment_variables = {
-    GCP_WIF_CREDENTIAL_CONFIG_SSM_PARAMETER = aws_ssm_parameter.gcp_wif.name,
-    DEFAULT_TIMEZONE = local.default_timezone
+    GCP_WIF_CREDENTIAL_CONFIG_SSM_PARAMETER = aws_ssm_parameter.gcp_wif.name
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]
