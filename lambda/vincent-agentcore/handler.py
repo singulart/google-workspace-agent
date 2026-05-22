@@ -8,8 +8,6 @@ on the invoke payload.
 
 from __future__ import annotations
 
-import base64
-import binascii
 import json
 import logging
 import os
@@ -61,19 +59,6 @@ def _parse_messaging_identity(event: dict[str, Any]) -> dict[str, Any] | None:
     except (TypeError, json.JSONDecodeError):
         return None
 
-
-def _raw_apigateway_body_text(event: dict[str, Any]) -> str:
-    """API Gateway proxy: body is a string; may be base64-encoded when isBase64Encoded is true."""
-    raw = event.get("body")
-    if raw is None:
-        return ""
-    if isinstance(raw, dict):
-        return json.dumps(raw)
-    if not isinstance(raw, str):
-        return ""
-    if event.get("isBase64Encoded"):
-        return base64.b64decode(raw).decode("utf-8")
-    return raw
 
 
 def _normalize_google_chat_http_event(body: dict[str, Any]) -> dict[str, Any]:
@@ -153,60 +138,23 @@ def _envelope_payload(
     return json.dumps(body).encode("utf-8")
 
 
-def _event_for_log(event: dict[str, Any]) -> dict[str, Any]:
-    """Compact API Gateway proxy event for CloudWatch (body truncated)."""
-    rc = event.get("requestContext") or {}
-    identity = rc.get("identity") or {}
-    raw = event.get("body")
-    if raw is None:
-        body: str | bytes = ""
-    elif isinstance(raw, bytes):
-        body = raw
-    else:
-        body = str(raw)
-    preview: str | None
-    if isinstance(body, str):
-        preview = (body[:_PROXY_BODY_LOG_MAX] + "…") if len(body) > _PROXY_BODY_LOG_MAX else body
-    else:
-        preview = f"<bytes len={len(body)}>"
-    return {
-        "requestId": rc.get("requestId"),
-        "httpMethod": event.get("httpMethod"),
-        "path": event.get("path"),
-        "sourceIp": identity.get("sourceIp"),
-        "bodyLength": len(body),
-        "bodyPreview": preview,
-    }
-
 
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
-        payload = json.dumps(_event_for_log(event), default=str)
+        payload = json.dumps(event, default=str)
     except Exception as exc:
-        print(f"proxy event log serialization failed: {exc!r}")
-        payload = repr(event)[:_PROXY_BODY_LOG_MAX]
-    logger.info("proxy event: %s", payload)
+        print(f"event serialization failed: {exc!r}")
+        return _api_response(400, {"error": "Invalid event"})
 
-    try:
-        text = _raw_apigateway_body_text(event)
-    except (UnicodeDecodeError, binascii.Error):
-        return _api_response(400, {"error": "Invalid request body encoding"})
+    logger.info("Event: %s", payload)
 
-    try:
-        parsed = json.loads(text or "{}")
-    except json.JSONDecodeError:
-        return _api_response(400, {"error": "Invalid JSON body"})
-
-    if not isinstance(parsed, dict):
-        return _api_response(400, {"error": "Expected JSON object"})
-
-    chat_event = _normalize_google_chat_http_event(parsed)
+    chat_event = _normalize_google_chat_http_event(json.loads(event.get("body") or {}))
 
     request_context = event.get("requestContext") or {}
     apigw_request_id = request_context.get("requestId")
     request_id = apigw_request_id if isinstance(apigw_request_id, str) else None
 
-    delivery = build_chat_delivery(parsed, request_id=request_id)
+    delivery = build_chat_delivery(event, request_id=request_id)
     if delivery:
         logger.info("delivery space=%s thread=%s", delivery.get("space_name"), delivery.get("thread_name"))
 
