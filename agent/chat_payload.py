@@ -1,4 +1,4 @@
-"""Parse Google Chat and AgentCore invocation payloads (no HTTP framework)."""
+"""Parse Google Chat and AgentCore invocation payloads."""
 
 from __future__ import annotations
 
