@@ -10,6 +10,7 @@ from mcp_proxy_for_aws.client import aws_iam_streamablehttp_client
 from strands import Agent
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
+from strands_tools.current_time import current_time
 
 from telemetry import trace_attributes_for_invocation
 
@@ -65,6 +66,13 @@ def _create_gmail_mcp_client() -> MCPClient | None:
 _GMAIL_MCP_CLIENT = _create_gmail_mcp_client()
 
 
+def _vincent_tools() -> list[Any]:
+    tools: list[Any] = [current_time]
+    if _GMAIL_MCP_CLIENT is not None:
+        tools.append(_GMAIL_MCP_CLIENT)
+    return tools
+
+
 def _bedrock_model() -> BedrockModel:
     region = os.environ.get("AWS_REGION", "us-east-1")
     model_id = os.environ.get(
@@ -84,6 +92,9 @@ def create_vincent_agent(*, session_id: str, actor_id: str) -> Agent:
 
     When MEMORY_ID is set on the runtime, conversation history is persisted via
     AgentCoreMemorySessionManager (see AWS sample AGENTCORE.md).
+
+    Includes the built-in ``current_time`` tool (``strands-agents-tools``; optional
+    ``DEFAULT_TIMEZONE`` env, default UTC).
 
     When GMAIL_MCP_GATEWAY_URL is set, Gmail tools are loaded from the AgentCore MCP
     gateway via MCPClient (SigV4 / IAM).
@@ -115,17 +126,14 @@ def create_vincent_agent(*, session_id: str, actor_id: str) -> Agent:
             actor_id=actor_id,
         ),
     }
-    if _GMAIL_MCP_CLIENT is None:
-        return Agent(**agent_kwargs)
-
-    agent_kwargs["tools"] = [_GMAIL_MCP_CLIENT]
+    agent_kwargs["tools"] = _vincent_tools()
     try:
         return Agent(**agent_kwargs)
     except ValueError as exc:
         if "Failed to load tool" not in str(exc):
             raise
         logger.warning("Gmail MCP tools unavailable, continuing without: %s", exc)
-        del agent_kwargs["tools"]
+        agent_kwargs["tools"] = [current_time]
         return Agent(**agent_kwargs)
 
 

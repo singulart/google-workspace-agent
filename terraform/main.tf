@@ -450,7 +450,8 @@ resource "aws_bedrockagentcore_agent_runtime" "gmail_mcp" {
   }
 
   environment_variables = {
-    GCP_WIF_CREDENTIAL_CONFIG_SSM_PARAMETER = aws_ssm_parameter.gcp_wif.name
+    GCP_WIF_CREDENTIAL_CONFIG_SSM_PARAMETER = aws_ssm_parameter.gcp_wif.name,
+    DEFAULT_TIMEZONE = local.default_timezone
   }
 
   depends_on = [aws_iam_role_policy.agent_runtime]

@@ -15,4 +15,7 @@ locals {
   google_chat_audience = var.google_chat_auth_mode == "http_url" ? (
     trimspace(var.google_chat_http_audience) != "" ? var.google_chat_http_audience : local.google_chat_webhook_url
   ) : var.google_chat_project_number
+
+  # Default timezone for the Strands tools (UTC by default).
+  default_timezone = "America/New_York"
 }
