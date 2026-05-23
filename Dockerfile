@@ -23,7 +23,8 @@ ENV PYTHONUNBUFFERED=1 \
     OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
     OTEL_RESOURCE_ATTRIBUTES=service.name=vincent_agent \
     OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental,gen_ai_tool_definitions \
-    OTEL_TRACES_SAMPLER=always_on
+    OTEL_TRACES_SAMPLER=always_on \ 
+    OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=false
 
 COPY --from=builder /deps /deps
 COPY agent/ .

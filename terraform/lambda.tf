@@ -26,7 +26,7 @@ locals {
 # --- Authorizer ---
 
 resource "aws_iam_role" "vincent_authorizer" {
-  name = "${var.name_prefix}-authorizer"
+  name = "${var.name_prefix}-authorizer-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -79,7 +79,7 @@ resource "aws_lambda_function" "vincent_authorizer" {
 # --- AgentCore bridge ---
 
 resource "aws_iam_role" "vincent_agentcore" {
-  name = "${var.name_prefix}-agentcore"
+  name = "${var.name_prefix}-agentcore-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -117,7 +117,7 @@ data "aws_iam_policy_document" "vincent_agentcore_invoke" {
 }
 
 resource "aws_iam_role_policy" "vincent_agentcore_invoke" {
-  name   = "${var.name_prefix}-agentcore-invoke"
+  name   = "${var.name_prefix}-agentcore-lambda-policy"
   role   = aws_iam_role.vincent_agentcore.id
   policy = data.aws_iam_policy_document.vincent_agentcore_invoke.json
 }
