@@ -1,0 +1,69 @@
+TASK-F4: Harden Vincent Strands context against AgentCore Memory reload
+========================================================================
+
+Epic: F — Agent integration
+Repo: gmail-agent
+Priority: required (v1) — primary context protection when MEMORY_ID set
+Blocked by: none (benefits from TASK-F1, TASK-B5)
+
+Value
+-----
+Prevent context window overflows, slow retries, and runaway token cost when
+AgentCore short-term memory reloads full session history on every Chat invoke.
+
+This addresses what MCP char budgets cannot: STM and prior turns merged into
+the prompt before/alongside new tool results.
+
+Background
+----------
+Each InvokeAgentRuntime call creates a new Strands Agent. AgentCoreMemorySessionManager
+loads STM events into agent.messages once per invoke. Default SlidingWindowConversationManager
+(window_size=40, per_turn=False) trims only after the agent loop; within a turn,
+restored history plus Gmail MCP tool results can exceed the model context before
+reactive reduce_context runs.
+
+Scope
+-----
+Update agent/vincent_agent.py (create_vincent_agent):
+
+1. conversation_manager — SlidingWindowConversationManager with tuned limits, e.g.:
+   - window_size smaller than default 40 (pick based on eval; start ~20)
+   - per_turn=True (or per_turn=N) so trimming runs before model calls in tool loops
+   - should_truncate_results=True (default; document explicitly)
+
+2. AgentCoreMemoryConfig options:
+   - filter_restored_tool_context=True — do not reload historical toolUse/toolResult
+     into the prompt (user/assistant text only from prior turns)
+
+3. Document trade-offs in code comment or agent README snippet:
+   - STM continuity vs. token budget
+   - Interaction with runtimeSessionId (per Chat space)
+   - MCP B5 caps tool payload only; F4 caps conversation mass
+
+Optional (separate commit if scope grows):
+   - proactive_compression on conversation manager
+   - session_manager.close() in finally if batch_size ever > 1
+
+Out of scope
+------------
+- LTM / retrieval_config (not enabled in terraform today)
+- Changing AgentCore event retention
+- MCP global cross-thread budget (TASK-B6, optional phase 2)
+
+Acceptance criteria
+-------------------
+[ ] Agent constructed with explicit conversation_manager (not implicit default only).
+[ ] filter_restored_tool_context=True on AgentCoreMemoryConfig when MEMORY_ID set.
+[ ] Manual or scripted scenario: 25+ turn Chat space + one Gmail tool-heavy message
+      completes without ContextWindowOverflowException (or documents expected trim).
+[ ] No regression for prompt-only test invokes (no MEMORY_ID).
+
+Test approach
+-------------
+- Local Agent with MEMORY_ID and synthetic long message history fixture, or
+- Staging Chat space soak; compare tokens/latency before vs. after.
+- Complements TASK-B5 (per-tool payload) and optional TASK-F3 / TASK-B6.
+
+Single value
+------------
+Required agent-side context limits for AgentCore Memory + Strands.

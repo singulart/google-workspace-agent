@@ -1,0 +1,29 @@
+TASK-G2: Document get_thread as thin alias of batch hydrator
+=============================================================
+
+Epic: G — Documentation & release
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-D1, TASK-D2
+
+Value
+-----
+Clear maintenance model: one engine, two tool names.
+
+Scope
+-----
+- README note: get_thread(threadId) equivalent to get_threads([threadId])
+- Docstrings on get_thread and get_threads MCP handlers
+- Internal comment on ThreadHydrator as single implementation
+
+Acceptance criteria
+-------------------
+[ ] README and docstrings state alias relationship.
+[ ] No duplicate hydrate implementation in codebase.
+
+Test approach
+-------------
+- Code review checklist item.
+
+Single value
+------------
+Documented single-engine / dual-tool surface pattern.

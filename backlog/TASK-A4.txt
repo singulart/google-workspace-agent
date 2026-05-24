@@ -1,0 +1,39 @@
+TASK-A4: Add fixture corpus for email normalization
+======================================================
+
+Epic: A — Foundations & quick wins
+Repo: gmail-dwd-mcp-server
+Blocked by: none
+
+Value
+-----
+Enables deterministic, offline testing without live Gmail.
+
+Scope
+-----
+Add tests/fixtures/threads/ with raw Gmail API JSON (or MIME samples):
+
+- Plain-only message
+- HTML-only message
+- multipart/alternative
+- Gmail quote block (gmail_quote)
+- Outlook-style -----Original Message-----
+- Long thread (10+ messages)
+- HTML-heavy marketing email
+- Empty / whitespace-only body
+
+Include tests/fixtures/threads/README.md describing each case.
+
+Acceptance criteria
+-------------------
+[ ] At least 8 fixtures checked into repo.
+[ ] README describes each fixture purpose.
+[ ] No real credentials or live mailbox data in fixtures.
+
+Test approach
+-------------
+- Fixtures loadable via pytest; at least one smoke test that loads each file.
+
+Single value
+------------
+Reusable test corpus for all normalization and hydration tasks.

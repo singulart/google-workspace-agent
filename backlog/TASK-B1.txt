@@ -1,0 +1,34 @@
+TASK-B1: Implement robust plain-text body extraction
+=====================================================
+
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-A4
+
+Value
+-----
+Reliable body source for LLM context.
+
+Scope
+-----
+Add extract_body(payload) -> str that:
+- Prefers text/plain part
+- Falls back to HTML conversion (delegates to TASK-B2 when plain absent)
+- Handles nested multipart structures
+
+Used by hydration pipeline; avoid breaking draft/create flows in mime.py.
+
+Acceptance criteria
+-------------------
+[ ] Fixture tests: plain-only and multipart return expected text.
+[ ] HTML-only fixture returns readable plain text (document link handling).
+[ ] No regression in draft/create flows using existing mime.py helpers.
+
+Test approach
+-------------
+- Parametrize tests over TASK-A4 fixtures.
+- No network calls.
+
+Single value
+------------
+Correct body extraction from Gmail payload structures.

@@ -1,0 +1,43 @@
+TASK-B2: Implement HTML-to-text converter module
+=================================================
+
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-A4
+
+Value
+-----
+Better text quality than regex-only html_to_plain.
+
+Scope
+-----
+Library: html2text (https://github.com/Alir3z4/html2text)
+
+Add dedicated converter module wrapping html2text with email-oriented defaults:
+- ignore_links=True, ignore_images=True, ignore_emphasis=True
+- body_width=0 (no hard wrapping; caps applied later in pipeline)
+- Skip script/style content (html2text ignores by default)
+- Used only when text/plain part is absent
+
+Add html2text to pyproject.toml with minimum version pin.
+
+Rationale (see team decision)
+-----------------------------
+html2text is the de facto Python choice for email HTML; one dependency,
+MIT license, widely used in production mail tooling. Configurable to emit
+plain text without markdown noise. BS4/lxml would require custom walk logic;
+inscriptis is plain-text-oriented but less battle-tested on messy email HTML.
+
+Acceptance criteria
+-------------------
+[ ] Unit tests against HTML fixtures (tables, br, div, nested tags).
+[ ] Output length stays bounded (no pathological expansion).
+[ ] Dependency declared in pyproject.toml.
+
+Test approach
+-------------
+- Unit tests with inline HTML samples and fixture files.
+
+Single value
+------------
+Dedicated HTML-to-text conversion for hydration.

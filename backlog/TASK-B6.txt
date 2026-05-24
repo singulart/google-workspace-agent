@@ -1,0 +1,45 @@
+TASK-B6: Implement global cross-thread character budget (OPTIONAL)
+====================================================================
+
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+Priority: optional (phase 2)
+Blocked by: TASK-B5, TASK-A3
+Blocks: TASK-F3 (global-budget eval scenarios only)
+
+Value
+-----
+Caps total chars across all threads in one get_threads result. Helpful for
+large batches; not sufficient for full LLM context control (Memory + STM are
+outside MCP — prioritize TASK-F4).
+
+Deprioritized because:
+- Agent can fetch fewer threadIds per call.
+- B5 already limits per-message and per-thread size.
+- total_max_chars does not account for prompt mass already in session.
+
+Scope
+-----
+After per-thread normalization, apply total_max_chars when set (non-null).
+When unset / disabled: skip this step; HydrateMeta.truncated reflects B5 only.
+
+Truncation order:
+1. Oldest messages within threads first
+2. Then oldest threads if still over budget
+
+Populate HydrateMeta.truncated and omission counts.
+
+Acceptance criteria
+-------------------
+[ ] 3 threads totaling 120k chars with total_max_chars=80k -> output <= 80k.
+[ ] When total_max_chars unset, hydrator output unchanged vs B7-only path.
+[ ] Metadata reports what was omitted when global budget applied.
+[ ] Deterministic: same input produces same output.
+
+Test approach
+-------------
+- Synthetic threads with known char counts; assert final size and meta fields.
+
+Single value
+------------
+Optional global character budget across a batch (phase 2).

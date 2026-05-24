@@ -1,0 +1,40 @@
+TASK-C5: Implement ThreadHydrator service
+==========================================
+
+Epic: C — Gmail fetch layer
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C4, TASK-B7, TASK-A3
+
+Value
+-----
+Combines fetch + normalize into one application service.
+
+Scope
+-----
+ThreadHydrator.hydrate(email, thread_ids, options) -> HydrateResult
+
+Pipeline:
+1. fetch_threads_raw (C4)
+2. normalize_thread per success (B7) — includes B5 message_limit + max_body_chars
+3. Optional: apply global char budget (B6) when options.total_max_chars set
+4. Build HydrateMeta:
+    requestedCount, successCount, errorCount
+    gmailApiCalls, quotaUnitsEstimated
+    totalChars, truncated
+
+Single entry point for get_thread and get_threads.
+
+Acceptance criteria
+-------------------
+[ ] Integration test with mocked Gmail + real normalize pipeline on fixtures.
+[ ] HydrateResult matches TASK-A3 schema.
+[ ] Failed threads appear in errors[]; successful in threads[].
+[ ] v1 ships without B6; step 3 is no-op until B6 implemented.
+
+Test approach
+-------------
+- Mock Gmail layer; run real normalization on fixture payloads.
+
+Single value
+------------
+End-to-end hydrator service wiring fetch to shaped output.

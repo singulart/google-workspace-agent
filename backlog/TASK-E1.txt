@@ -1,0 +1,36 @@
+TASK-E1: Add hydration-specific OpenTelemetry spans
+====================================================
+
+Epic: E — Observability & configuration
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C5, TASK-D2
+
+Value
+-----
+Operability for enterprise debugging and capacity planning.
+
+Scope
+-----
+Spans (extend existing telemetry.py):
+- get_threads / get_thread hydrate span
+- fetch_thread child span
+- normalize_thread child span
+
+Attributes (no PII, no bodies):
+- batch_size, success_count, error_count
+- gmail.api_calls, quota.units
+- output.chars, truncated, concurrency
+
+Acceptance criteria
+-------------------
+[ ] Spans emitted when AGENT_OBSERVABILITY_ENABLED=true.
+[ ] Manual verification steps documented in README.
+[ ] No message body content in attributes.
+
+Test approach
+-------------
+- Unit test span creation with in-memory exporter or mock tracer.
+
+Single value
+------------
+Distributed tracing for hydration operations.

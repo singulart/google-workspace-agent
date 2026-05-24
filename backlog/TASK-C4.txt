@@ -1,0 +1,36 @@
+TASK-C4: Implement parallel batch fetch orchestrator
+=====================================================
+
+Epic: C — Gmail fetch layer
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C1, TASK-C2, TASK-C3
+
+Value
+-----
+Core I/O concurrency for get_threads.
+
+Scope
+-----
+fetch_threads_raw(email, thread_ids, *, concurrency) -> dict[id, Result]
+
+- ThreadPoolExecutor with concurrency = min(len(ids), settings.max_concurrency)
+- Integrate rate limiter + fetch_thread_raw (configured num_retries via C3)
+- Dedupe thread IDs before fetch
+- Preserve input order in downstream assembly
+- Partial success: one failure does not abort others
+
+Acceptance criteria
+-------------------
+[ ] Mock test T=5, concurrency=5: 5 parallel fetches; wall time ~ single fetch
+    (simulated delay).
+[ ] One thread fails -> others succeed in result map.
+[ ] Duplicate IDs deduped; only one fetch per unique ID.
+
+Test approach
+-------------
+- Mock fetch_thread_raw with sleep; measure parallel vs sequential.
+- Inject failure for one ID; assert partial result.
+
+Single value
+------------
+Parallel batch fetch with partial failure support.

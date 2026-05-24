@@ -1,0 +1,32 @@
+TASK-E3: Add structured logging for hydration outcomes
+=======================================================
+
+Epic: E — Observability & configuration
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C5
+
+Value
+-----
+CloudWatch-friendly operational metrics without trace tooling.
+
+Scope
+-----
+Info log per get_threads / hydrate invocation:
+- batch_size, duration_ms, success_count, error_count
+- output_chars, truncated
+
+Error log per failed thread ID with error code (no bodies).
+
+Acceptance criteria
+-------------------
+[ ] Logs contain no message bodies or full snippets.
+[ ] Log field names stable for CloudWatch metric filters.
+[ ] Log level INFO for success, ERROR for per-thread failures.
+
+Test approach
+-------------
+- caplog pytest fixture; assert structured fields present.
+
+Single value
+------------
+Structured operational logging for hydration batches.

@@ -1,0 +1,40 @@
+TASK-D2: Add get_threads MCP tool
+==================================
+
+Epic: D — MCP tool surface
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C5
+
+Value
+-----
+Batch hydration in one agent turn.
+
+Scope
+-----
+New MCP tool: get_threads
+
+Parameters:
+- email (required)
+- threadIds[] (required)
+- Same optional params as get_thread: stripQuotedContent, messageLimit,
+  maxBodyChars, includeAttachmentIds
+- totalMaxChars: optional; global batch cap — TASK-B6 (phase 2)
+- No messageFormat — output always LLM-shaped (same as get_thread)
+
+Enforce max_batch_size from settings (default 10).
+Return partial success: threads[] + errors[] + meta.
+
+Acceptance criteria
+-------------------
+[ ] Tool visible via tools/list.
+[ ] Rejects batch > max_batch_size with clear error (no Gmail calls).
+[ ] Mock test: 3 IDs -> one hydrator.hydrate call with 3 IDs.
+[ ] Response messages use body only; no raw HTML fields.
+
+Test approach
+-------------
+- Unit test tool handler validation and hydrator delegation.
+
+Single value
+------------
+New batch MCP tool for parallel thread hydration.

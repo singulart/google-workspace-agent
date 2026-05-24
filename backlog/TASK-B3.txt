@@ -1,0 +1,53 @@
+TASK-B3: Implement reply and signature stripping (email-reply-parser)
+======================================================================
+
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-A4
+
+Value
+-----
+Removes duplicated quoted content and generic signatures that pollute LLM
+context windows — in one pass.
+
+Scope
+-----
+Library: email-reply-parser (5monkeys/python-email-reply-parser on PyPI)
+
+Add strip_reply_content(text, *, is_first_in_thread: bool) -> str
+
+Primary strategy: email_reply_parser.parse_reply(text)
+- Removes quoted reply blocks (Gmail "On ... wrote:", > lines, etc.)
+- Removes generic signature fragments (-- delimiter, common patterns)
+- Single library call covers both; no separate signature-stripping step (see
+  cancelled TASK-B4)
+
+When is_first_in_thread=True, skip parse_reply (first message has no prior
+quotes; trailing signatures on opening messages are kept in v1).
+
+Optional pre-pass on HTML-derived text: strip obvious gmail_quote / blockquote
+regions before html2text when body came from HTML (document if implemented).
+
+Dependency: add email-reply-parser to pyproject.toml with version pin.
+
+Out of scope (optional follow-up, not B4)
+-----------------------------------------
+- sendAs API exact signature match (mime.py strip_trailing_plain_signature)
+- mime.py signature helpers remain for draft composition (write path) only
+
+Acceptance criteria
+-------------------
+[ ] Fixtures: Gmail and Outlook quote patterns removed correctly.
+[ ] Fixture: body with "--\nName\nTitle" signature -> signature absent in output.
+[ ] First message unchanged when is_first_in_thread=True.
+[ ] Pure unit tests, no network.
+
+Test approach
+-------------
+- One test per quote pattern in fixture corpus.
+- One test for -- delimiter signature removal (non-first message).
+- Edge case: entire body is a quote -> empty or minimal remainder (document).
+
+Single value
+------------
+Quoted-reply and generic signature removal via email-reply-parser.

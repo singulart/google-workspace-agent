@@ -1,0 +1,39 @@
+TASK-D3: Define LLM hydrate response schema; remove FULL_CONTENT
+=================================================================
+
+Epic: D — MCP tool surface
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-A3, TASK-B7
+
+Value
+-----
+Clear, single-purpose read contract for an LLM-only MCP server.
+
+Scope
+-----
+This server does not expose FULL_CONTENT or a messageFormat switch on read tools.
+
+- Remove FULL_CONTENT from MessageFormat enum (or remove enum from hydrate tools)
+- Remove messageFormat from get_thread / get_threads tool schemas
+- Document two read shapes:
+    search_threads -> TriageThread (snippet, headers, no body)
+    get_thread(s)  -> HydratedThread (body = normalized plain text)
+- HydratedMessage fields: id, subject, sender, toRecipients, ccRecipients,
+  date, body, attachmentIds (optional)
+- README example request/response for each tool
+
+Write tools (create_draft, labels) unchanged — unrelated to read schema.
+
+Acceptance criteria
+-------------------
+[ ] get_thread / get_threads have no messageFormat parameter.
+[ ] FULL_CONTENT not exposed in MCP read tool responses.
+[ ] README documents triage vs hydrated shapes (not MINIMAL/FULL/LLM trio).
+
+Test approach
+-------------
+- Schema snapshot or fixture assertion for HydratedMessage and TriageMessage.
+
+Single value
+------------
+LLM-only read schema; FULL_CONTENT removed from product surface.

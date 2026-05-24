@@ -1,0 +1,41 @@
+TASK-G1: Document hydration architecture in MCP README
+=======================================================
+
+Epic: G — Documentation & release
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-D2, TASK-D4
+
+Value
+-----
+Onboarding and enterprise architecture review artifact.
+
+Scope
+-----
+Extend gmail-dwd-mcp-server README:
+
+- Product scope: LLM-only read path (no FULL_CONTENT / raw HTML in tool responses)
+- Two-phase model: search_threads (triage) -> get_threads (hydrate)
+- Two response shapes: TriageThread vs HydratedThread (body = normalized plain text)
+- Gmail API usage: threads.get(format=full) for raw fetch only; no messages.list
+  by threadIds
+- Caps (v1): messageLimit, maxBodyChars — required defaults; local tool payload only
+- Caps (phase 2): totalMaxChars — optional global batch budget (TASK-B6)
+- Agent context: TASK-F4 (Memory/STM), not MCP budgets alone
+- Parallelization and quota (concurrency, rate limiter)
+- Partial errors schema
+- Example tool payloads and responses
+- Sequence diagram or ASCII flow
+
+Acceptance criteria
+-------------------
+[ ] README sections merged and accurate.
+[ ] Examples are copy-paste valid JSON.
+[ ] README does not document FULL_CONTENT or messageFormat on read tools.
+
+Test approach
+-------------
+- Peer review; examples validated against actual tool schemas.
+
+Single value
+------------
+Complete hydration architecture documentation in MCP README.

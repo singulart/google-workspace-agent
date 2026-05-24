@@ -1,0 +1,22 @@
+TASK-B4: Integrate signature stripping into hydration pipeline
+=============================================================
+
+STATUS: CANCELLED — merged into TASK-B3
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+
+Reason
+------
+email-reply-parser.parse_reply() already classifies and removes signature
+fragments (e.g. "--" delimiter, common patterns) alongside quoted replies.
+A separate hydration step reusing mime.py signature helpers is redundant for
+the read/LLM path.
+
+What still applies elsewhere
+----------------------------
+- mime.py append/strip signature helpers: keep for draft composition (write
+  path in gmail_service.create_draft), not hydration.
+- Optional future task (not scheduled): sendAs-aware exact signature stripping
+  using users.settings.sendAs when heuristic parsing misses corporate blocks.
+
+See TASK-B3 for merged acceptance criteria and implementation.

@@ -1,0 +1,42 @@
+TASK-F3: Add agent-side eval cases for context size (OPTIONAL)
+==============================================================
+
+Epic: F — Agent integration
+Repo: gmail-agent
+Priority: optional (phase 2)
+Blocked by: TASK-D2, TASK-B5
+Blocked by (global scenarios only): TASK-B6
+
+Value
+-----
+Regression guard for MCP hydrate output size. Complements TASK-F4 (agent/STM),
+which is the primary defense against full prompt overflow.
+
+Scope
+-----
+Add eval script or tests/ scenarios:
+
+v1 scenarios (after B5, no B6 required):
+1. Long thread (15+ messages) — assert message_limit honored
+2. HTML-heavy newsletter thread — assert maxBodyChars honored
+
+Phase 2 scenarios (after B6):
+3. Five-thread batch after search — assert total chars under totalMaxChars
+
+Assert get_threads tool result respects configured caps; meta.truncated when applicable.
+
+Acceptance criteria
+-------------------
+[ ] At least v1 scenarios runnable locally against MCP server (mock or test mailbox).
+[ ] Thresholds and expected caps documented.
+[ ] CI hook optional but documented.
+[ ] README or task note: passing F3 does not imply total LLM context safety.
+
+Test approach
+-------------
+- Script calls MCP get_threads directly or via agent harness; assert meta.totalChars
+  and per-thread bounds.
+
+Single value
+------------
+Optional automated MCP output size regression checks (phase 2 for full suite).

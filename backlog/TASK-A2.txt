@@ -1,0 +1,27 @@
+TASK-A2: Remove debug logging from message parsing path
+========================================================
+
+Epic: A — Foundations & quick wins
+Repo: gmail-dwd-mcp-server
+Blocked by: none
+
+Value
+-----
+Prevents log noise and accidental PII leakage in production.
+
+Scope
+-----
+- Remove print(...) from message_from_gmail_api in mime.py.
+
+Acceptance criteria
+-------------------
+[ ] No stdout prints during message parsing.
+[ ] Existing parse tests still pass.
+
+Test approach
+-------------
+- Run pytest on mime parsing tests; capture stdout and assert empty.
+
+Single value
+------------
+Production-safe logging in the message parsing path.

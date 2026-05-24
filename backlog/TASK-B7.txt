@@ -1,0 +1,48 @@
+TASK-B7: Compose normalize_thread pipeline function
+==================================================
+
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+Priority: required (v1)
+Blocked by: TASK-B1, TASK-B2, TASK-B3, TASK-B5
+
+Value
+-----
+Single testable entry point for content shaping.
+
+Scope
+-----
+normalize_thread(raw_thread: dict, options: HydrationOptions) -> HydratedThread
+
+Always produces LLM-shaped output. No FULL_CONTENT or format switch — this
+server hydrates for LLM consumption only.
+
+Pipeline order (document in docstring):
+1. Extract body per message (plain preferred, HTML fallback via B1/B2)
+2. Strip quoted content and generic signatures (B3 / email-reply-parser), skip
+   when is_first_in_thread and stripReplyContent policy applies
+3. Per-message char cap (B5)
+4. Per-thread message limit (B5)
+5. Map to HydratedMessage / HydratedThread schema (body field only)
+
+Global cross-thread total_max_chars is NOT in this pipeline — TASK-B6 (optional)
+runs in ThreadHydrator after per-thread normalize.
+
+Note: TASK-B4 cancelled; no separate signature step. mime.py signature helpers
+are not used on this read path.
+
+Triage metadata (search_threads) uses a separate code path — not normalize_thread.
+
+Acceptance criteria
+-------------------
+[ ] End-to-end fixture tests: output uses body with normalized plain text.
+[ ] Output never includes raw HTML, htmlBody, or plaintextBody fields.
+[ ] Pipeline order documented.
+
+Test approach
+-------------
+- Integration-style unit tests using TASK-A4 fixtures end-to-end.
+
+Single value
+------------
+One orchestrated normalize_thread function for LLM-shaped thread output.

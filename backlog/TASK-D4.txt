@@ -1,0 +1,39 @@
+TASK-D4: Slim down search_threads to triage-only by default
+============================================================
+
+Epic: D — MCP tool surface
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C1 (metadata fetch helper, if extracted)
+
+Value
+-----
+Search stops paying N x hydration cost; returns only what the LLM needs to triage.
+
+Scope
+-----
+Default search_threads behavior:
+- threads.list for discovery
+- Lightweight enrichment: snippet, subject, from, date per thread
+- Never return body, htmlBody, or plaintextBody (TriageThread schema, TASK-A3)
+
+Optional param includeMessageSummaries:
+- true: enriched metadata per thread (current behavior, still no bodies)
+- false: minimal (thread IDs + list-level data only, if sufficient)
+
+Extract shared metadata fetch helper if useful.
+
+Acceptance criteria
+-------------------
+[ ] Default path API call count documented and tested.
+[ ] Search response never includes body or full plaintextBody.
+[ ] Response matches TriageThread / TriageMessage schema.
+[ ] Benchmark note: 20-result search API cost <= prior implementation target.
+
+Test approach
+-------------
+- Mock Gmail; count API calls for default search.
+- Assert no body fields in response JSON.
+
+Single value
+------------
+Search returns triage data only; hydration deferred to get_threads.

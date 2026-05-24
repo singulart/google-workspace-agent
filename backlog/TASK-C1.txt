@@ -1,0 +1,35 @@
+TASK-C1: Implement single-thread fetch primitive
+=================================================
+
+Epic: C — Gmail fetch layer
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-A1
+
+Value
+-----
+One correct, minimal Gmail read path reused everywhere.
+
+Scope
+-----
+fetch_thread_raw(service, thread_id) -> dict
+
+- Single call: users().threads().get(userId="me", id=thread_id, format="full")
+- Map Gmail HttpError to typed exceptions:
+    ThreadNotFoundError (404)
+    RateLimitedError (429)
+    PermissionDeniedError (403)
+    GmailApiError (other)
+
+Acceptance criteria
+-------------------
+[ ] Mock test: exactly one threads.get invoked per fetch.
+[ ] 404 mapped to ThreadNotFoundError.
+[ ] 429 mapped to RateLimitedError.
+
+Test approach
+-------------
+- Mock googleapiclient; assert call count and exception types.
+
+Single value
+------------
+Typed, single-call Gmail thread fetch primitive.

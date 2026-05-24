@@ -1,0 +1,38 @@
+TASK-D1: Refactor get_thread to use ThreadHydrator
+===================================================
+
+Epic: D — MCP tool surface
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C5
+
+Value
+-----
+Existing tool uses hydrator; always returns LLM-shaped messages.
+
+Scope
+-----
+- Replace inline _get_thread_internal full-content path with ThreadHydrator
+- get_thread always returns HydratedThread (plain body per message)
+- No messageFormat parameter — no FULL_CONTENT option
+- Optional params: stripQuotedContent, messageLimit, maxBodyChars
+  (defaults from E2; v1 always applies message + body caps)
+- totalMaxChars: optional tool param; no-op until TASK-B6 (phase 2)
+- Remove MessageFormat from get_thread tool schema
+
+search_threads keeps separate triage path (TriageThread); not via ThreadHydrator.
+
+Acceptance criteria
+-------------------
+[ ] get_thread MCP tool still registered with same name.
+[ ] Optional cap/strip params appear in tool schema.
+[ ] Response messages use body only; no htmlBody or plaintextBody.
+[ ] messageFormat removed from get_thread (or ignored with deprecation log).
+
+Test approach
+-------------
+- MCP tool handler test with mocked ThreadHydrator.
+- Integration test asserts HydratedMessage schema.
+
+Single value
+------------
+get_thread delegates to ThreadHydrator; always LLM-shaped output.

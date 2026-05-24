@@ -1,0 +1,32 @@
+TASK-C2: Implement quota-aware rate limiter
+============================================
+
+Epic: C — Gmail fetch layer
+Repo: gmail-dwd-mcp-server
+Blocked by: none
+
+Value
+-----
+Protects against userRateLimitExceeded under batch load.
+
+Scope
+-----
+Token bucket rate limiter keyed by impersonated email:
+- Configurable units per second (default conservative, e.g. 200)
+- acquire(units) blocks until budget available
+- threads.get reserves 10 units per call
+- Thread-safe for concurrent workers
+
+Acceptance criteria
+-------------------
+[ ] Unit tests: burst then throttle (fake clock or timed window).
+[ ] threads.get integration reserves 10 units.
+[ ] Safe under concurrent acquire from ThreadPoolExecutor.
+
+Test approach
+-------------
+- Inject clock or use short window; assert blocking behavior.
+
+Single value
+------------
+Reusable Gmail quota rate limiter.

@@ -1,0 +1,49 @@
+TASK-C3: Configure Gmail API retries via google-api-python-client
+==================================================================
+
+Epic: C — Gmail fetch layer
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C1
+
+Value
+-----
+Resilience without failing entire batch on transient errors — no custom retry code.
+
+Scope
+-----
+Use built-in retry on google-api-python-client HttpRequest.execute(num_retries=N).
+The client already retries with randomized exponential backoff via
+googleapiclient.http._retry_request:
+
+- Retries: 429, 5xx, 403 with userRateLimitExceeded / rateLimitExceeded
+- No retry: 404, 400, other 403
+- Transport / SSL errors: retried (client default behavior)
+
+Implementation (no tenacity, no custom backoff wrapper):
+
+1. Add GMAIL_API_NUM_RETRIES to config (default 3; 0 = single attempt).
+2. In fetch_thread_raw (TASK-C1), call:
+     .execute(num_retries=settings.gmail_api_num_retries)
+3. After retries exhausted, map googleapiclient.errors.HttpError to typed
+   exceptions (ThreadNotFoundError, RateLimitedError, PermissionDeniedError).
+4. Do not wrap execute() in an additional retry library (avoids double-retry).
+
+Observability: rely on googleapiclient WARNING logs for rate-limit retries;
+optionally increment a span attribute on final failure only.
+
+Acceptance criteria
+-------------------
+[ ] fetch_thread_raw passes num_retries from settings to execute().
+[ ] Mock 429 -> succeeds when a later attempt returns 200 (client retry path).
+[ ] 404 -> no retry beyond single attempt when num_retries=0; immediate
+    ThreadNotFoundError after final failure when num_retries>0.
+[ ] No new retry dependency added to pyproject.toml.
+
+Test approach
+-------------
+- Mock httplib2/http layer or patch _retry_request; assert retry count.
+- Unit test settings default and env override for GMAIL_API_NUM_RETRIES.
+
+Single value
+------------
+Configured use of client-native Gmail API retries.

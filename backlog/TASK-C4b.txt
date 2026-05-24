@@ -1,0 +1,33 @@
+TASK-C4b: Gmail HTTP batch API for thread fetch (optional)
+===========================================================
+
+Epic: C — Gmail fetch layer
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-C4 (ship and profile first)
+
+Value
+-----
+Lower TCP/HTTP overhead when batch size T is large.
+
+Scope
+-----
+Optional optimization using google-api-python-client batch HTTP:
+- Pack multiple threads.get into one HTTP round trip to Google
+- Still T logical API calls and T quota units
+- Feature-flagged; default off until profiled
+
+Acceptance criteria
+-------------------
+[ ] Batch path produces identical raw results to parallel individual calls.
+[ ] Profiling note documents latency improvement (or decision to skip).
+[ ] Flag GMAIL_HYDRATE_USE_BATCH_HTTP controls behavior.
+
+Test approach
+-------------
+- Mock batch endpoint; compare output to TASK-C4 path.
+
+Single value
+-----
+Optional HTTP batching optimization for thread fetch.
+
+Note: Implement only if TASK-C4 traces show connection overhead is significant.

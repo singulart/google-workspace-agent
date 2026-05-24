@@ -1,0 +1,30 @@
+TASK-F2: Verify MCP gateway exposes get_threads to runtime
+===========================================================
+
+Epic: F — Agent integration
+Repo: gmail-agent
+Blocked by: TASK-D2
+
+Value
+-----
+New tool reachable in production AgentCore path.
+
+Scope
+-----
+- Confirm AgentCore MCP gateway target sync picks up get_threads from server catalog
+- Update terraform/agentcore_gateway.tf or docs if explicit tool allowlist required
+- Verify GMAIL_MCP_GATEWAY_URL path unchanged (SigV4 / IAM)
+
+Acceptance criteria
+-------------------
+[ ] get_threads invocable via gateway in dev/staging.
+[ ] Vincent agent.tool_names includes get_threads after gateway sync.
+[ ] Any terraform change documented in deploy notes.
+
+Test approach
+-------------
+- Manual invoke or integration test against staging gateway.
+
+Single value
+------------
+Production gateway path verified for get_threads.

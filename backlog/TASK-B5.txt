@@ -1,0 +1,39 @@
+TASK-B5: Implement per-message and per-thread size caps
+======================================================
+
+Epic: B — Content normalization pipeline
+Repo: gmail-dwd-mcp-server
+Priority: required (v1)
+Blocked by: TASK-A3
+
+Value
+-----
+Local safety rails: bounded per-thread tool payload before LLM. Does not
+guarantee total prompt size when AgentCore Memory reloads STM (see TASK-F4).
+
+Scope
+-----
+- cap_body(text, max_body_chars) -> (text, truncated: bool)
+  Append explicit marker e.g. [... truncated ...]
+  Use conservative default max_body_chars from HydrationOptions / E2.
+
+- limit_messages(messages, message_limit) -> (messages, omitted_count)
+  Keep newest N messages chronologically.
+
+Both are required in v1 — do not ship hydrate tools without them.
+
+Acceptance criteria
+-------------------
+[ ] Long body truncated at cap with visible marker.
+[ ] Thread with 20 messages and message_limit=10 keeps 10 newest;
+    omitted_count=10.
+[ ] Unit tests only, deterministic output.
+[ ] Defaults applied when tool omits optional params (documented in A3/E2).
+
+Test approach
+-------------
+- Table-driven tests for cap boundaries (exactly at limit, one char over).
+
+Single value
+------------
+Required per-message and per-thread truncation primitives.

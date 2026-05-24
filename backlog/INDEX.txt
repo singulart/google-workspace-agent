@@ -1,0 +1,96 @@
+Gmail Thread Hydration — Technical Backlog
+==========================================
+
+Epic A — Foundations & quick wins
+  TASK-A1.txt  Remove redundant messages.get in full thread fetch
+  TASK-A2.txt  Remove debug logging from message parsing path
+  TASK-A3.txt  Define hydration domain types and options model
+  TASK-A4.txt  Add fixture corpus for email normalization
+
+Epic B — Content normalization pipeline
+  TASK-B1.txt  Implement robust plain-text body extraction
+  TASK-B2.txt  Implement HTML-to-text converter module
+  TASK-B3.txt  Implement reply and signature stripping (email-reply-parser)
+  TASK-B4.txt  CANCELLED — merged into TASK-B3
+  TASK-B5.txt  Implement per-message and per-thread size caps (required)
+  TASK-B6.txt  Implement global cross-thread character budget (OPTIONAL)
+  TASK-B7.txt  Compose normalize_thread pipeline function
+
+Epic C — Gmail fetch layer
+  TASK-C1.txt  Implement single-thread fetch primitive
+  TASK-C2.txt  Implement quota-aware rate limiter
+  TASK-C3.txt  Configure Gmail API retries (google-api-python-client)
+  TASK-C4.txt  Implement parallel batch fetch orchestrator
+  TASK-C4b.txt Gmail HTTP batch API for thread fetch (optional)
+  TASK-C5.txt  Implement ThreadHydrator service
+
+Epic D — MCP tool surface
+  TASK-D1.txt  Refactor get_thread to use ThreadHydrator
+  TASK-D2.txt  Add get_threads MCP tool
+  TASK-D3.txt  Define LLM hydrate schema; remove FULL_CONTENT
+  TASK-D4.txt  Slim down search_threads to triage-only by default
+
+Epic E — Observability & configuration
+  TASK-E1.txt  Add hydration-specific OpenTelemetry spans
+  TASK-E2.txt  Add server configuration for hydration limits
+  TASK-E3.txt  Add structured logging for hydration outcomes
+
+Epic F — Agent integration (gmail-agent)
+  TASK-F1.txt  Update Vincent system prompt for two-phase Gmail reads
+  TASK-F2.txt  Verify MCP gateway exposes get_threads to runtime
+  TASK-F3.txt  Add agent-side eval cases for context size (OPTIONAL)
+  TASK-F4.txt  Harden Strands context vs AgentCore Memory STM reload
+
+Epic G — Documentation & release
+  TASK-G1.txt  Document hydration architecture in MCP README
+  TASK-G2.txt  Document get_thread as thin alias of batch hydrator
+  TASK-G3.txt  Define rollout and feature-flag strategy
+
+Context budgeting (design)
+--------------------------
+MCP char budgets bound a single tool result only. They do not see AgentCore
+Memory / STM already merged into the agent prompt. Total context safety requires
+agent-side limits (TASK-F4) plus conservative hydrate defaults (TASK-B5).
+
+Required (v1):
+  - TASK-B5: message_limit + per-message max_body_chars (hard ceiling)
+  - TASK-F4: Strands window + filter_restored_tool_context when MEMORY_ID set
+
+Optional (phase 2):
+  - TASK-B6: global total_max_chars across threads in one get_threads call
+  - TASK-F3: automated MCP output size regression suite (depends on B6 for
+    global-budget scenarios; per-message caps testable after B5 alone)
+
+Implementation order
+----------------------
+Wave 1: A1, A2, A3, A4, C2
+Wave 2: B1, B2, B3, C1, C3
+Wave 3: B5, B7, C4, C5
+Wave 4: D1, D2, D3, D4, E2, E3, F4
+Wave 5: E1, F1, F2, G1, G2, G3
+
+Phase 2 (optional): B6, F3
+
+Definition of done (all tasks)
+------------------------------
+- Unit tests added/updated; pytest passes
+- No message bodies in logs or trace attributes
+- Public behavior documented if user-facing
+- Single responsibility: task does not bundle unrelated refactors
+
+Primary repo: gmail-dwd-mcp-server (MCP tasks)
+Secondary repo: gmail-agent (agent integration tasks)
+
+Design: LLM-only read path
+--------------------------
+- search_threads -> TriageThread (snippet + headers, no body)
+- get_thread / get_threads -> HydratedThread (body = normalized plain text)
+- No FULL_CONTENT, no messageFormat on read tools
+- threads.get(format=full) is Gmail API fetch only (internal)
+
+Out of scope (separate backlogs)
+--------------------------------
+- Async pre-indexing / search store (OpenSearch, DynamoDB)
+- Attachment content extraction
+- Thread summarization via LLM inside MCP server
+- Per-tenant SSM policy overrides beyond env config

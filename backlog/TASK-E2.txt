@@ -1,0 +1,43 @@
+TASK-E2: Add server configuration for hydration limits
+=======================================================
+
+Epic: E — Observability & configuration
+Repo: gmail-dwd-mcp-server
+Blocked by: TASK-A3
+
+Value
+-----
+Tunable per environment without code changes.
+
+Scope
+-----
+Settings / env vars (config.py):
+
+Required defaults (v1 — used when tool omits params):
+- GMAIL_HYDRATE_DEFAULT_MESSAGE_LIMIT
+- GMAIL_HYDRATE_DEFAULT_MAX_BODY_CHARS
+
+Operational (not char-budget):
+- GMAIL_HYDRATE_MAX_BATCH_SIZE (default 10)
+- GMAIL_HYDRATE_MAX_CONCURRENCY (default 5)
+
+Phase 2 (optional until TASK-B6):
+- GMAIL_HYDRATE_DEFAULT_TOTAL_MAX_CHARS
+  Unset or 0 = disabled (no global cross-thread budget).
+
+Tool arguments override env defaults.
+
+Acceptance criteria
+-------------------
+[ ] Documented in README configuration table (note which vars are v1 vs phase 2).
+[ ] Unit test: env vars change effective defaults for message_limit and max_body_chars.
+[ ] total_max_chars env ignored or no-op until B6 ships (document behavior).
+[ ] Invalid config fails fast at startup with clear message.
+
+Test approach
+-------------
+- Settings.from_env tests with monkeypatched environment.
+
+Single value
+------------
+Centralized hydration configuration via environment.

@@ -1,0 +1,70 @@
+TASK-A3: Define hydration domain types and options model
+=========================================================
+
+Epic: A — Foundations & quick wins
+Repo: gmail-dwd-mcp-server
+Blocked by: none
+
+Value
+-----
+Stable contract for all downstream hydration tasks.
+
+Design note (LLM-only server)
+-----------------------------
+This MCP server serves LLMs only. Two read response shapes, not a MessageFormat
+enum on hydrate tools:
+
+- Triage (search_threads): metadata + snippet, no body
+- Hydrated (get_thread / get_threads): always normalized plain text in body
+
+Context budgeting (v1 vs phase 2)
+---------------------------------
+- message_limit and max_body_chars: required fields with conservative defaults
+  (always applied on hydrate path).
+- total_max_chars: optional (None / omitted = no global cross-thread budget;
+  implemented in TASK-B6, phase 2).
+
+MCP budgets do not see AgentCore Memory; agent-side limits are TASK-F4.
+
+Scope
+-----
+Add Pydantic models (new module, e.g. hydration.py or extend models.py):
+
+- HydrationOptions (get_thread / get_threads only)
+    strip_quoted_content
+    message_limit          # required default, e.g. 20
+    max_body_chars         # required default, e.g. 16_000
+    total_max_chars        # optional; None = disabled until B6
+    include_attachment_ids
+  No message_format — hydrate output is always LLM-shaped.
+
+- TriageMessage / TriageThread (search_threads)
+    id, snippet, subject, sender, toRecipients, ccRecipients, date
+    no body, no htmlBody, no plaintextBody
+
+- HydratedMessage (get_thread / get_threads)
+    id, subject, sender, toRecipients, ccRecipients, date
+    body (plain, normalized — sole message text field)
+    attachmentIds (optional metadata)
+    omittedFromThread (bool) if message dropped by message_limit
+
+- HydratedThread, HydrateResult, HydrateError, HydrateMeta
+
+Defaults documented in code. JSON serialization uses camelCase aliases
+(MCP convention).
+
+Acceptance criteria
+-------------------
+[ ] Models serialize to JSON with camelCase aliases.
+[ ] HydratedMessage has body only — no htmlBody or plaintextBody in MCP output.
+[ ] Unit tests for defaults and validation (e.g. message_limit >= 1).
+[ ] total_max_chars optional; None validates and serializes correctly.
+[ ] No Gmail API calls in this task.
+
+Test approach
+-------------
+- Pure unit tests: model_dump(by_alias=True), invalid inputs rejected.
+
+Single value
+------------
+Shared typed contract for triage vs hydrated read paths.

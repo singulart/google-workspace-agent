@@ -1,0 +1,37 @@
+TASK-A1: Remove redundant messages.get in full thread fetch
+============================================================
+
+Epic: A — Foundations & quick wins
+Repo: gmail-dwd-mcp-server
+Blocked by: none
+
+Value
+-----
+Cuts Gmail API calls and latency for every thread hydration fetch.
+
+Scope
+-----
+- In _get_thread_internal (gmail_service.py), when threads.get(format=full)
+  returns message payloads, parse bodies directly from payload.
+- Do not call messages.get per message unless payload is genuinely missing.
+- Document the rare cases where a follow-up messages.get is still required.
+
+Note: threads.get(format=full) is the Gmail API format parameter (raw fetch),
+not a client-facing MessageFormat. Parsed content feeds the normalize pipeline
+(TASK-B7); MCP tools expose only LLM-shaped body (TASK-A3).
+
+Acceptance criteria
+-------------------
+[ ] Thread with N messages results in exactly 1 Gmail API call (threads.get).
+[ ] Inline payload parts are parseable for downstream normalization.
+[ ] Unit test with mocked Gmail response containing inline payload parts.
+
+Test approach
+-------------
+- Mock googleapiclient service; assert messages().get is never called when
+  threads.get returns full payloads.
+- Regression test using fixture thread JSON from TASK-A4 (when available).
+
+Single value
+------------
+One correct fetch primitive; no duplicate Gmail reads for full threads.
