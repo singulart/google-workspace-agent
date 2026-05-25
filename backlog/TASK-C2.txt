@@ -14,13 +14,13 @@ Scope
 Token bucket rate limiter keyed by impersonated email:
 - Configurable units per second (default conservative, e.g. 200)
 - acquire(units) blocks until budget available
-- threads.get reserves 10 units per call
+- threads.get reserves 40 units per call (Gmail API quota table)
 - Thread-safe for concurrent workers
 
 Acceptance criteria
 -------------------
 [ ] Unit tests: burst then throttle (fake clock or timed window).
-[ ] threads.get integration reserves 10 units.
+[ ] threads.get integration reserves 40 units.
 [ ] Safe under concurrent acquire from ThreadPoolExecutor.
 
 Test approach

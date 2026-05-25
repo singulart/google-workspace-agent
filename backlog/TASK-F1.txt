@@ -16,13 +16,9 @@ Update _SYSTEM_PROMPT in agent/vincent_agent.py (or dedicated prompt module):
 Instructions:
 1. Use search_threads to find candidate threads.
 2. Triage using snippet, subject, from, date — do not assume full content.
-3. Use get_threads with selected threadIds (prefer batch over repeated get_thread).
-4. Do not expect full bodies from search_threads.
-5. get_thread / get_threads always return normalized plain text in body — no raw
-   HTML; no format parameter to choose.
-6. If hydrate meta indicates truncation (per-message/thread caps, or global
-   budget when enabled), acknowledge gaps to user.
-7. Prefer small get_threads batches; MCP caps do not include session memory size.
+3. Use get_threads with threadIds you think are relevant to the task.
+4. If hydrate meta indicates truncation, acknowledge gaps to user.
+5. Prefer small get_threads batches (20 items per batch); MCP caps do not include session memory size.
 
 Acceptance criteria
 -------------------
