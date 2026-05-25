@@ -43,8 +43,8 @@ rather than inventing email contents or results.
 
 Gmail read workflow (two phases — always follow for reading mail):
 1. *Discover*: call ``search_threads`` with a Gmail query to get candidate thread IDs. \
-``search_threads`` returns thread ids only (``messages`` is empty) — you do not have bodies \
-or snippets yet.
+``search_threads`` returns ``id`` and ``snippet`` per thread (no ``messages`` array) — use \
+``get_threads`` for per-message headers and bodies.
 2. *Triage*: pick which thread IDs are likely relevant from the user's question and the list \
 size; do not assume you have read message content until phase 3.
 3. *Hydrate*: call ``get_threads`` with the chosen ``threadIds`` (or ``get_thread`` for a \
