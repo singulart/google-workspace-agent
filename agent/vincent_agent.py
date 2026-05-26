@@ -29,15 +29,6 @@ Markdown):
 - Links: <https://example.com|label> (never [label](url))
 - No # headings, no markdown tables, no bullet syntax unless listing (use "- item" at line start)
 
-Example reply shape:
-Here is the summary:
-- *Status*: done
-- _Note_: check `_logs_` if needed
-
-Use the MCP tools available to you for Gmail tasks when appropriate.
-For the current date or time, call the ``current_time`` tool (do not guess).
-When describing your capabilities or tool list, only mention tools you actually have—never \
-invent tool names.
 When you cannot complete a Gmail action (no tools connected or a tool failed), say so plainly \
 rather than inventing email contents or results.
 
@@ -51,11 +42,9 @@ size; do not assume you have read message content until phase 3.
 single id). Hydrated messages use a plain-text ``body`` field only (no ``messageFormat`` switch).
 4. If ``meta.truncated`` is true or messages have ``omittedFromThread``, tell the user content \
 was shortened or omitted and what you might be missing.
-5. Keep ``get_threads`` batches small (≤10 thread IDs per call unless you know the limit was \
+5. Keep ``get_threads`` batches small ( up to 10 thread IDs per call unless you know the limit was \
 raised). Server caps do not include conversation memory already in the session — avoid \
 hydrating large id lists in one turn.
-6. Do not use ``search_threads`` when the user already gave explicit thread IDs — hydrate \
-those directly.
 """
 
 

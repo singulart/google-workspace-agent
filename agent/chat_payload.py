@@ -23,9 +23,33 @@ def strip_chat_mentions(text: str) -> str:
     return " ".join(t.split())
 
 
+def _user_email_from_event(event: dict[str, Any]) -> str | None:
+    """Workspace email from ``chat.user.email`` or normalized ``event.user.email``."""
+    chat = event.get("chat")
+    if isinstance(chat, dict):
+        user = chat.get("user")
+        if isinstance(user, dict):
+            email = user.get("email")
+            if isinstance(email, str) and email.strip():
+                return email.strip()
+    user = event.get("user")
+    if isinstance(user, dict):
+        email = user.get("email")
+        if isinstance(email, str) and email.strip():
+            return email.strip()
+    return None
+
+
 def _normalize_google_chat_http_event(body: dict[str, Any]) -> dict[str, Any]:
     kind = body.get("eventType") or body.get("type")
     if kind == "MESSAGE" and isinstance(body.get("message"), dict):
+        if isinstance(body.get("user"), dict):
+            return body
+        chat = body.get("chat")
+        if isinstance(chat, dict) and isinstance(chat.get("user"), dict):
+            merged = dict(body)
+            merged["user"] = chat["user"]
+            return merged
         return body
 
     chat = body.get("chat")
@@ -85,8 +109,21 @@ def extract_user_text_from_chat_event(event: dict[str, Any]) -> str | None:
     if not isinstance(raw, str):
         return None
     text = strip_chat_mentions(raw).strip()
-    return text or None
+    if not text:
+        return None
 
+    email = _user_email_from_event(event)
+    if not email:
+        return None
+
+    return f"""<session_context>
+  <user_email>{email}</user_email>
+</session_context>
+
+<user_message>
+{text}
+</user_message>
+"""
 
 def _space_name_from_event(event: dict[str, Any]) -> str | None:
     space = event.get("space")

@@ -154,7 +154,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     apigw_request_id = request_context.get("requestId")
     request_id = apigw_request_id if isinstance(apigw_request_id, str) else None
 
-    delivery = build_chat_delivery(event, request_id=request_id)
+    delivery = build_chat_delivery(chat_event, request_id=request_id)
     if delivery:
         logger.info("delivery space=%s thread=%s", delivery.get("space_name"), delivery.get("thread_name"))
 

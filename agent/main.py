@@ -32,6 +32,9 @@ configure_observability()
 
 app = BedrockAgentCoreApp()
 
+# Grep runtime APPLICATION_LOGS for this line to confirm the deployed image includes your build.
+logger.info("vincent runtime loaded (xml_user_message=1)")
+
 
 def _run_agent_and_post_chat(
     *,
@@ -93,14 +96,16 @@ def invoke(payload: dict, context: RequestContext) -> dict:
     invocation = extract_invocation_input(payload)
     if invocation is None:
         kind = payload.get("eventType") or payload.get("type") or "unknown"
+        logger.info("ignored_event kind=%s", kind)
         return {"response": "", "status": "success", "ignored_event": kind}
 
     session_id = (context.session_id or "").strip() or f"session-{uuid.uuid4()}"
     logger.info(
-        "invoke source=%s session_id=%s actor_id=%s",
+        "invoke source=%s session_id=%s actor_id=%s user_message=%.200s",
         invocation.source,
         session_id,
         invocation.actor_id,
+        invocation.user_message,
     )
 
     delivery = delivery_from_payload(payload)
