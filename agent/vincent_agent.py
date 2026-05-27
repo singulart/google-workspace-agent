@@ -101,16 +101,31 @@ def _conversation_manager() -> SlidingWindowConversationManager:
     )
 
 
+def _bedrock_streaming_enabled(model_id: str) -> bool:
+    """Bedrock ConverseStream does not support tool use for some models (e.g. Llama)."""
+    raw = os.environ.get("BEDROCK_STREAMING", "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if "llama" in model_id.lower():
+        return False
+    return True
+
+
 def _bedrock_model() -> BedrockModel:
     region = os.environ.get("AWS_REGION", "us-east-1")
     model_id = os.environ.get(
         "BEDROCK_MODEL_ID",
         "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
     )
+    streaming = _bedrock_streaming_enabled(model_id)
+    logger.info("Bedrock model_id=%s streaming=%s", model_id, streaming)
     return BedrockModel(
         model_id=model_id,
         region_name=region,
         temperature=float(os.environ.get("BEDROCK_TEMPERATURE", "0.3")),
+        streaming=streaming,
     )
 
 

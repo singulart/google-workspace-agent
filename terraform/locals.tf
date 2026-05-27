@@ -18,4 +18,6 @@ locals {
 
   # Default timezone for the Strands tools (UTC by default).
   default_timezone = "America/New_York"
+
+  bedrock_model_id = "us.meta.llama3-3-70b-instruct-v1:0"
 }

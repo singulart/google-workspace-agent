@@ -351,6 +351,7 @@ resource "aws_bedrockagentcore_agent_runtime" "main" {
   }
 
   environment_variables = {
+    BEDROCK_MODEL_ID            = local.bedrock_model_id
     UPLOADS_BUCKET_NAME         = aws_s3_bucket.uploads.bucket
     SESSIONS_TABLE_NAME         = aws_dynamodb_table.sessions.name
     MEMORY_ID                   = aws_bedrockagentcore_memory.main.id

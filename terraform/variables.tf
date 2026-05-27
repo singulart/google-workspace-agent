@@ -1,7 +1,7 @@
 variable "container_image_tag" {
   type        = string
   description = "ECR tag for the Vincent agent"
-  default     = "2026-05-25-004"
+  default     = "2026-05-27-002"
 }
 
 variable "gmail_mcp_container_image_tag" {
