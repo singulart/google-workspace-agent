@@ -8,6 +8,7 @@ from typing import Any
 
 from mcp_proxy_for_aws.client import aws_iam_streamablehttp_client
 from strands import Agent
+from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
 from strands_tools.current_time import current_time
@@ -93,6 +94,13 @@ def _vincent_tools() -> list[Any]:
     return tools
 
 
+def _conversation_manager() -> SlidingWindowConversationManager:
+    return SlidingWindowConversationManager(
+        window_size=100,
+        proactive_compression=True,
+    )
+
+
 def _bedrock_model() -> BedrockModel:
     region = os.environ.get("AWS_REGION", "us-east-1")
     model_id = os.environ.get(
@@ -139,6 +147,7 @@ def create_vincent_agent(*, session_id: str, actor_id: str) -> Agent:
     agent_kwargs: dict[str, Any] = {
         "model": _bedrock_model(),
         "system_prompt": _SYSTEM_PROMPT,
+        "conversation_manager": _conversation_manager(),
         "session_manager": session_manager,
         "callback_handler": None,
         "trace_attributes": trace_attributes_for_invocation(

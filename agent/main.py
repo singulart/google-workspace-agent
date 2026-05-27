@@ -32,10 +32,6 @@ configure_observability()
 
 app = BedrockAgentCoreApp()
 
-# Grep runtime APPLICATION_LOGS for this line to confirm the deployed image includes your build.
-logger.info("vincent runtime loaded (xml_user_message=1)")
-
-
 def _run_agent_and_post_chat(
     *,
     session_id: str,
