@@ -1,4 +1,4 @@
-"""Strands agent factory for Vincent (Bedrock + optional AgentCore Memory + Gmail MCP)."""
+"""Strands agent factory for Vincent (Bedrock + AgentCore Memory + Gmail MCP)."""
 
 from __future__ import annotations
 
