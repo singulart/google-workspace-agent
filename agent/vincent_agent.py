@@ -9,11 +9,11 @@ from typing import Any
 from mcp_proxy_for_aws.client import aws_iam_streamablehttp_client
 from strands import Agent
 from strands.agent.conversation_manager import SlidingWindowConversationManager
-from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
 from strands_tools.current_time import current_time
 
 from chat_format import format_text_for_google_chat
+from llama_bedrock import LlamaToolCallBedrockModel, parse_llama_text_tool_call
 from telemetry import trace_attributes_for_invocation
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,15 @@ Markdown):
 When you cannot complete a Gmail action (no tools connected or a tool failed), say so plainly \
 rather than inventing email contents or results.
 
+Temporal references and Gmail date filters:
+- Each user turn includes ``<session_context>`` with ``<now_iso>`` and ``<timezone>``. Treat that as \
+authoritative for "today" and for resolving relative dates.
+- Before ``search_threads`` with ``after:`` / ``before:``, or when the user names a month without a year \
+("March", "last week", "yesterday"), compute the range from ``<now_iso>`` in session context. Use \
+``current_time`` only if that context is missing.
+- Month without year: the most recent calendar month with that name relative to ``<now_iso>`` (e.g. in May 2026, \
+"March" means March 2026). If truly ambiguous, ask once instead of guessing.
+
 Gmail read workflow (two phases — always follow for reading mail):
 1. *Discover*: call ``search_threads`` with a Gmail query to get candidate thread IDs. \
 ``search_threads`` returns ``id`` and ``snippet`` per thread (no ``messages`` array) — use \
@@ -40,10 +49,8 @@ Gmail read workflow (two phases — always follow for reading mail):
 2. *Triage*: pick which thread IDs are likely relevant from the user's question and the list \
 size; do not assume you have read message content until phase 3.
 3. *Hydrate*: call ``get_threads`` with the chosen ``threadIds`` (or ``get_thread`` for a \
-single id). Hydrated messages use a plain-text ``body`` field only (no ``messageFormat`` switch).
-4. If ``meta.truncated`` is true or messages have ``omittedFromThread``, tell the user content \
-was shortened or omitted and what you might be missing.
-5. Keep ``get_threads`` batches small ( up to 10 thread IDs per call unless you know the limit was \
+single id).
+4. Keep ``get_threads`` batches small ( up to 10 thread IDs per call unless you know the limit was \
 raised). Server caps do not include conversation memory already in the session — avoid \
 hydrating large id lists in one turn.
 """
@@ -113,7 +120,7 @@ def _bedrock_streaming_enabled(model_id: str) -> bool:
     return True
 
 
-def _bedrock_model() -> BedrockModel:
+def _bedrock_model() -> LlamaToolCallBedrockModel:
     region = os.environ.get("AWS_REGION", "us-east-1")
     model_id = os.environ.get(
         "BEDROCK_MODEL_ID",
@@ -121,7 +128,7 @@ def _bedrock_model() -> BedrockModel:
     )
     streaming = _bedrock_streaming_enabled(model_id)
     logger.info("Bedrock model_id=%s streaming=%s", model_id, streaming)
-    return BedrockModel(
+    return LlamaToolCallBedrockModel(
         model_id=model_id,
         region_name=region,
         temperature=float(os.environ.get("BEDROCK_TEMPERATURE", "0.3")),
@@ -192,8 +199,10 @@ def _text_from_content_blocks(content: Any) -> str:
     parts: list[str] = []
     for block in content:
         if isinstance(block, dict):
+            if "toolUse" in block:
+                continue
             text = block.get("text")
-            if text:
+            if text and parse_llama_text_tool_call(str(text)) is None:
                 parts.append(str(text))
         elif hasattr(block, "text") and block.text:
             parts.append(str(block.text))
@@ -247,5 +256,13 @@ def run_agent(agent: Agent, user_message: str) -> str:
             "Something went wrong while processing your message. "
             "Please try again in a moment."
         )
-    raw = assistant_text(result) or "I couldn't generate a reply."
-    return format_text_for_google_chat(raw)
+    raw = assistant_text(result)
+    if raw and parse_llama_text_tool_call(raw) is not None:
+        logger.warning(
+            "Model returned a text-encoded tool call without executing it; "
+            "check BEDROCK_STREAMING and llama_bedrock normalization"
+        )
+        return (
+            "I started a Gmail action but could not complete it. Please try again."
+        )
+    return format_text_for_google_chat(raw or "I couldn't generate a reply.")

@@ -1,8 +1,5 @@
 """
-Vincent on Amazon Bedrock AgentCore Runtime.
-
-Uses the official BedrockAgentCoreApp wrapper (Strands + Bedrock). AgentCore provides
-/ping and /invocations; do not add a custom Starlette/FastAPI server for those routes.
+Vincent, an agent on Bedrock AgentCore Runtime.
 
 Google Chat reaches this runtime via the vincent-agentcore Lambda bridge.
 """
@@ -31,6 +28,7 @@ logger = logging.getLogger(__name__)
 configure_observability()
 
 app = BedrockAgentCoreApp()
+
 
 def _run_agent_and_post_chat(
     *,
@@ -92,16 +90,14 @@ def invoke(payload: dict, context: RequestContext) -> dict:
     invocation = extract_invocation_input(payload)
     if invocation is None:
         kind = payload.get("eventType") or payload.get("type") or "unknown"
-        logger.info("ignored_event kind=%s", kind)
         return {"response": "", "status": "success", "ignored_event": kind}
 
     session_id = (context.session_id or "").strip() or f"session-{uuid.uuid4()}"
     logger.info(
-        "invoke source=%s session_id=%s actor_id=%s user_message=%.200s",
+        "invoke source=%s session_id=%s actor_id=%s",
         invocation.source,
         session_id,
         invocation.actor_id,
-        invocation.user_message,
     )
 
     delivery = delivery_from_payload(payload)

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 _MENTION_RE = re.compile(r"<users/[^>]+>")
 
@@ -21,6 +24,61 @@ class InvocationInput:
 def strip_chat_mentions(text: str) -> str:
     t = _MENTION_RE.sub("", text)
     return " ".join(t.split())
+
+
+def default_timezone() -> str:
+    """IANA timezone for session clock (matches ``DEFAULT_TIMEZONE`` on the runtime)."""
+    tz = os.environ.get("DEFAULT_TIMEZONE", "").strip()
+    return tz or "UTC"
+
+
+def now_iso(*, timezone: str | None = None, now: datetime | None = None) -> tuple[str, str]:
+    """
+    Current instant as ISO 8601 in the given or default timezone.
+
+    Returns ``(iso_string, timezone_name)``.
+    """
+    tz_name = timezone or default_timezone()
+    zone = ZoneInfo(tz_name)
+    instant = now if now is not None else datetime.now(tz=zone)
+    if instant.tzinfo is None:
+        instant = instant.replace(tzinfo=zone)
+    else:
+        instant = instant.astimezone(zone)
+    return instant.isoformat(), tz_name
+
+
+def format_agent_user_message(
+    text: str,
+    *,
+    user_email: str | None = None,
+    now: datetime | None = None,
+) -> str:
+    """
+    Wrap the user turn with session context the model should use for date resolution.
+
+    Injects authoritative ``<now_iso>`` and ``<timezone>`` on every turn so Gmail
+    ``after:`` / ``before:`` filters do not rely on the model calling ``current_time``.
+    """
+    now_iso_str, tz_name = now_iso(now=now)
+    lines = [
+        "<session_context>",
+        f"  <now_iso>{now_iso_str}</now_iso>",
+        f"  <timezone>{tz_name}</timezone>",
+    ]
+    if user_email:
+        lines.append(f"  <user_email>{user_email}</user_email>")
+    lines.extend(
+        [
+            "</session_context>",
+            "",
+            "<user_message>",
+            text,
+            "</user_message>",
+            "",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def _user_email_from_event(event: dict[str, Any]) -> str | None:
@@ -116,14 +174,8 @@ def extract_user_text_from_chat_event(event: dict[str, Any]) -> str | None:
     if not email:
         return None
 
-    return f"""<session_context>
-  <user_email>{email}</user_email>
-</session_context>
+    return format_agent_user_message(text, user_email=email)
 
-<user_message>
-{text}
-</user_message>
-"""
 
 def _space_name_from_event(event: dict[str, Any]) -> str | None:
     space = event.get("space")
@@ -214,21 +266,28 @@ def actor_id_from_payload(body: dict[str, Any]) -> str:
 
 def extract_invocation_input(body: dict[str, Any]) -> InvocationInput | None:
     """
-  Return a user turn to send to the Strands agent, or None if the event should be ignored.
-  """
+    Return a user turn to send to the Strands agent, or None if the event should be ignored.
+    """
+    actor_id = actor_id_from_payload(body)
+    event = _normalize_google_chat_http_event(body)
+    user_email = _user_email_from_event(event)
+
     prompt = body.get("prompt")
     if isinstance(prompt, str) and prompt.strip():
         return InvocationInput(
-            user_message=prompt.strip(),
-            actor_id=actor_id_from_payload(body),
+            user_message=format_agent_user_message(
+                prompt.strip(),
+                user_email=user_email,
+            ),
+            actor_id=actor_id,
             source="prompt",
         )
 
-    chat_text = extract_user_text_from_chat_event(_normalize_google_chat_http_event(body))
+    chat_text = extract_user_text_from_chat_event(event)
     if chat_text is not None:
         return InvocationInput(
             user_message=chat_text,
-            actor_id=actor_id_from_payload(body),
+            actor_id=actor_id,
             source="google_chat_message",
         )
 
@@ -237,7 +296,10 @@ def extract_invocation_input(body: dict[str, Any]) -> InvocationInput | None:
         return None
 
     return InvocationInput(
-        user_message='Send {"prompt": "Hello"} or a Google Chat MESSAGE event.',
-        actor_id=actor_id_from_payload(body),
+        user_message=format_agent_user_message(
+            'Send {"prompt": "Hello"} or a Google Chat MESSAGE event.',
+            user_email=user_email,
+        ),
+        actor_id=actor_id,
         source="unknown_payload",
     )
