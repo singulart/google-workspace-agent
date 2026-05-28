@@ -20,4 +20,6 @@ locals {
   default_timezone = "America/New_York"
 
   bedrock_model_id = "us.meta.llama3-3-70b-instruct-v1:0"
+  # Llama on Bedrock: tool use requires Converse (non-streaming). See agent/vincent_agent.py.
+  bedrock_streaming = "false"
 }
